@@ -1,13 +1,14 @@
-// App.tsx
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Homepage from "./screens/pages/LandingPage"; // ✅ match the actual component name & file
-
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import LoginPage from "./screens/authscreen/LoginPage";
+import SignUpPage from "./screens/authscreen/SignUpPage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Homepage />} />   {/* ✅ route added */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
       </Routes>
     </BrowserRouter>
   );
