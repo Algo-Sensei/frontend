@@ -109,26 +109,6 @@
                 onBlur={(e) => (e.currentTarget.style.border = "1px solid #555")}
             />
 
-            <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{
-                padding: "12px",
-                borderRadius: "5px",
-                border: "1px solid #555",
-                color: "#FFFFFF",
-                fontSize: "16px",
-                backgroundColor: "#484848",
-                outline: "none",
-                fontFamily: "'Inter', sans-serif",
-                marginBottom: "12px",
-                }}
-                onFocus={(e) => (e.currentTarget.style.border = "1px solid #E24E40")}
-                onBlur={(e) => (e.currentTarget.style.border = "1px solid #555")}
-            />
-
             <button
                 style={{
                 height: "48px",

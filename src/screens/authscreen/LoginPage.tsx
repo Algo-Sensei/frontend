@@ -125,6 +125,7 @@
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#c94030")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#E24E40")}
+                // todo to direct ai chat
             >
                 Login
             </button>

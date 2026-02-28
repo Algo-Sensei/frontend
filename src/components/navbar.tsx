@@ -1,104 +1,144 @@
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
-
-  .navbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.4rem 3rem;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(10, 10, 15, 0.85);
-    backdrop-filter: blur(12px);
-  }
-
-  .nav-left {
-    display: flex;
-    gap: 2rem;
-  }
-
-  .nav-left a,
-  .nav-right a {
-    text-decoration: none;
-    color: #a0a0b0;
-    font-size: 0.9rem;
-    font-family: 'Space Mono', monospace;
-    letter-spacing: 0.02em;
-    transition: color 0.2s;
-    cursor: pointer;
-  }
-
-  .nav-left a:hover,
-  .nav-right a:hover {
-    color: #f0ede8;
-  }
-
-  .nav-left a.active {
-    color: #7bffc4;
-  }
-
-  .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 1.2rem;
-  }
-
-  .logo {
-    font-size: 1rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    color: #f0ede8;
-    font-family: 'Syne', sans-serif;
-  }
-
-  .login {
-    border: 1px solid rgba(123, 255, 196, 0.4);
-    padding: 0.4rem 1rem;
-    color: #7bffc4 !important;
-    border-radius: 2px;
-    transition: background 0.2s !important;
-  }
-
-  .login:hover {
-    background: rgba(123, 255, 196, 0.1);
-  }
-
-  @media (max-width: 768px) {
-    .navbar {
-      padding: 1rem 1.5rem;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-    .nav-left {
-      gap: 1rem;
-    }
-  }
-`;
-
-function Navbar() {
+const Navbar = () => {
   const { pathname } = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+  const [loginHovered, setLoginHovered] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const links = [
+    { label: "Home",        path: "/" },
+    { label: "Our Project", path: "/project" },
+    { label: "About Us",    path: "/about" },
+    { label: "Contact Us",  path: "/contact" },
+  ];
 
   return (
     <>
-      <style>{styles}</style>
-      <nav className="navbar">
-        <div className="nav-left">
-          <Link to="/"         className={pathname === "/"         ? "active" : ""}>Home</Link>
-          <Link to="/project"  className={pathname === "/project"  ? "active" : ""}>Our Project</Link>
-          <Link to="/about"    className={pathname === "/about"    ? "active" : ""}>About Us</Link>
-          <Link to="/contact"  className={pathname === "/contact"  ? "active" : ""}>Contact Us</Link>
-        </div>
-        <div className="nav-right">
-          <span className="logo">AlgoSensei</span>
-          <Link to="/login" className="login">Login</Link>
-        </div>
-      </nav>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @media (max-width: 768px) {
+          .navbar-wrapper { padding: 10px 1rem 0 !important; }
+          .navbar-inner { padding: 0.8rem 1.2rem !important; border-radius: 14px !important; }
+          .navbar-links { gap: 1.2rem !important; }
+        }
+      `}</style>
+
+      {/* Wrapper */}
+      <div
+        className="navbar-wrapper"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          zIndex: 100,
+          display: "flex",
+          justifyContent: "center",
+          padding: "15px 2rem 0",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Liquid Glass Nav */}
+        <nav
+          className="navbar-inner"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "1rem 2rem",
+            fontFamily: "'Inter', sans-serif",
+            borderRadius: "10px",
+            width: "100%",
+            maxWidth: "1600px",
+            transition: "all 0.3s ease",
+
+            /* Liquid glass effect */
+            background: scrolled
+              ? "rgba(255, 255, 255, 0.12)"
+              : "rgba(255, 255, 255, 0.06)",
+            backdropFilter: "blur(24px) saturate(180%)",
+            WebkitBackdropFilter: "blur(24px) saturate(180%)",
+            border: "1px solid rgba(255, 255, 255, 0.18)",
+            boxShadow: scrolled
+              ? "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)"
+              : "0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+          }}
+        >
+          {/* Links */}
+          <div
+            className="navbar-links"
+            style={{ display: "flex", gap: "3rem" }}
+          >
+            {links.map(({ label, path }) => (
+              <Link
+                key={path}
+                to={path}
+                onMouseEnter={() => setHoveredLink(path)}
+                onMouseLeave={() => setHoveredLink(null)}
+                style={{
+                  textDecoration: "none",
+                  fontSize: "0.9rem",
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: "0.02em",
+                  transition: "color 0.2s",
+                  color: pathname === path
+                    ? "#E24E40"
+                    : hoveredLink === path
+                    ? "#D9D9D9"
+                    : "#FFFFFF",
+                }}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Right side */}
+          <div
+            className="navbar-right"
+            style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}
+          >
+            <span
+              style={{
+                fontSize: "1rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                color: "#FFFFFF",
+                fontFamily: "'Inter', sans-serif",
+              }}
+            >
+              AlgoSensei
+            </span>
+
+            <span style={{ fontSize: "20px", color: "#ffffff" }}>|</span>
+
+            <Link
+              to="/login"
+              onMouseEnter={() => setLoginHovered(true)}
+              onMouseLeave={() => setLoginHovered(false)}
+              style={{
+                textDecoration: "none",
+                fontSize: "0.9rem",
+                fontFamily: "'Inter', sans-serif",
+                transition: "color 0.2s",
+                color: loginHovered ? "#D9D9D9" : "#FFFFFF",
+              }}
+            >
+              Login
+            </Link>
+          </div>
+        </nav>
+      </div>
     </>
   );
-}
+};
 
 export default Navbar;
