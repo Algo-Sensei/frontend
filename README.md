@@ -56,7 +56,7 @@ and enter this command in ubuntu terminal to build image:
 
 and enter this command in ubuntu terminal to run the container
 
-### docker run -p 3000:80 react-app
+### docker run -p 3000:80 algo-sensei-app
 
 Now open:
 http://localhost:3000
