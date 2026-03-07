@@ -44,3 +44,19 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+### How to run with docker
+
+Optional: have ubuntu wsl or ubuntu os
+make sure you have docker installed and running in your machine
+make sure you are in the working directory where the dockerfile lives
+and enter this command in ubuntu terminal to build image:
+
+### docker build -t algo-sensei-app .
+
+and enter this command in ubuntu terminal to run the container
+
+### docker run -p 3000:80 react-app
+
+Now open:
+http://localhost:3000
