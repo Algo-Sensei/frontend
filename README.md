@@ -52,11 +52,11 @@ make sure you have docker installed and running in your machine
 make sure you are in the working directory where the dockerfile lives
 and enter this command in ubuntu terminal to build image:
 
-### docker build -t algo-sensei-app .
+### docker build -t algo-sensei-frontend .
 
 and enter this command in ubuntu terminal to run the container
 
-### docker run -p 3000:80 algo-sensei-app
+### docker run -p 3000:80 algo-sensei-frontend
 
 Now open:
 http://localhost:3000
