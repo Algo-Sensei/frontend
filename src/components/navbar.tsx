@@ -6,6 +6,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [loginHovered, setLoginHovered] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -20,6 +21,32 @@ const Navbar = () => {
     { label: "Contact Us",  path: "/contact" },
   ];
 
+  const linkStyle = (path: string): React.CSSProperties => ({
+    textDecoration: "none",
+    fontSize: "0.9rem",
+    fontFamily: "'Inter', sans-serif",
+    letterSpacing: "0.02em",
+    transition: "color 0.2s",
+    color: pathname === path
+      ? "#E24E40"
+      : hoveredLink === path
+      ? "#D9D9D9"
+      : "#FFFFFF",
+    position: "relative",
+    paddingBottom: "3px",
+  });
+
+  const underlineStyle = (isHovered: boolean, isActive: boolean): React.CSSProperties => ({
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: isHovered || isActive ? "100%" : "0%",
+    height: "2px",
+    background: isActive ? "#E24E40" : "#D9D9D9",
+    transition: "width 0.25s ease",
+    borderRadius: "2px",
+  });
+
   return (
     <>
       <style>{`
@@ -31,7 +58,6 @@ const Navbar = () => {
         }
       `}</style>
 
-      {/* Wrapper */}
       <div
         className="navbar-wrapper"
         style={{
@@ -46,7 +72,6 @@ const Navbar = () => {
           boxSizing: "border-box",
         }}
       >
-        {/* Liquid Glass Nav */}
         <nav
           className="navbar-inner"
           style={{
@@ -59,8 +84,6 @@ const Navbar = () => {
             width: "100%",
             maxWidth: "1600px",
             transition: "all 0.3s ease",
-
-            /* Liquid glass effect */
             background: scrolled
               ? "rgba(255, 255, 255, 0.12)"
               : "rgba(255, 255, 255, 0.06)",
@@ -73,30 +96,17 @@ const Navbar = () => {
           }}
         >
           {/* Links */}
-          <div
-            className="navbar-links"
-            style={{ display: "flex", gap: "3rem" }}
-          >
+          <div className="navbar-links" style={{ display: "flex", gap: "3rem" }}>
             {links.map(({ label, path }) => (
               <Link
                 key={path}
                 to={path}
                 onMouseEnter={() => setHoveredLink(path)}
                 onMouseLeave={() => setHoveredLink(null)}
-                style={{
-                  textDecoration: "none",
-                  fontSize: "0.9rem",
-                  fontFamily: "'Inter', sans-serif",
-                  letterSpacing: "0.02em",
-                  transition: "color 0.2s",
-                  color: pathname === path
-                    ? "#E24E40"
-                    : hoveredLink === path
-                    ? "#D9D9D9"
-                    : "#FFFFFF",
-                }}
+                style={linkStyle(path)}
               >
                 {label}
+                <span style={underlineStyle(hoveredLink === path, pathname === path)} />
               </Link>
             ))}
           </div>
@@ -106,6 +116,24 @@ const Navbar = () => {
             className="navbar-right"
             style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}
           >
+            <button  /* dark mode button */
+              onClick={() => setDarkMode(!darkMode)}
+              style={{
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "50%",
+                width: "34px",
+                height: "34px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "16px",
+                transition: "background 0.2s",
+              }}
+            >
+              {darkMode ? "🌙" : "☀️"}
+            </button>
             <span
               style={{
                 fontSize: "1rem",
@@ -130,9 +158,12 @@ const Navbar = () => {
                 fontFamily: "'Inter', sans-serif",
                 transition: "color 0.2s",
                 color: loginHovered ? "#D9D9D9" : "#FFFFFF",
+                position: "relative",
+                paddingBottom: "3px",
               }}
             >
               Login
+              <span style={underlineStyle(loginHovered, pathname === "/login")} />
             </Link>
           </div>
         </nav>
