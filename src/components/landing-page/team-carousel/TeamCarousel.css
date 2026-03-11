@@ -1,0 +1,105 @@
+/* Team Carousel Styles */
+.carousel-wrapper {
+  overflow: hidden;
+  position: relative;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 10px;
+
+  width: max-content;
+
+  animation: scroll 20s linear infinite;
+}
+
+.carousel-track.paused {
+  animation-play-state: paused;
+}
+
+.carousel-item {
+  position: relative;
+  width: 600px;
+  height: 420px;
+  cursor: pointer;
+}
+
+.carousel-image {
+  width: 600px;
+  height: 420px;
+  object-fit: cover;
+
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.carousel-image:hover {
+  filter: grayscale(0%);
+}
+
+.overlay {
+  position: absolute;
+
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+
+  padding: 10px 14px;
+  border-radius: 10px;
+
+  text-align: center;
+
+  opacity: 0;
+  transition: all 0.3s ease;
+
+  box-shadow: 
+    0 10px 25px rgba(0,0,0,0.6),
+    0 2px 6px rgba(0,0,0,0.4);
+}
+
+.overlay h4 {
+  margin: 0;
+  font-size: 14px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.carousel-item:hover .overlay {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.socials {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.socials a {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  color: white;
+  text-decoration: none;
+
+  font-weight: bold;
+  padding: 4px 6px;
+  border-radius: 4px;
+
+  transition: background 0.3s, color 0.3s;
+}
+
+.socials a:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

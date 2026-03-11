@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Navbar from "../components/navbar";
+import AboutUs from "../components/landing-page/AboutUs";
 
 const LandingPage = () => {
   const [btnHovered, setBtnHovered] = useState(false);
@@ -207,7 +208,9 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-
+        
+        {/* About us */}
+        <AboutUs />
       </div>
     </>
   );
