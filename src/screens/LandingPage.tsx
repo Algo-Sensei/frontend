@@ -35,28 +35,23 @@ const LandingPage = () => {
           to   { opacity: 1; transform: translateY(0); }
         }
 
+        /* ── Rounded box grid background ── */
         .features-bg {
           position: relative;
           width: 100%;
-          --color: rgba(114, 114, 114, 0.3);
-          background-color: #191a1a;
-          background-image:
-            linear-gradient(0deg, transparent 24%, var(--color) 25%, var(--color) 26%, transparent 27%, transparent 74%, var(--color) 75%, var(--color) 76%, transparent 77%, transparent),
-            linear-gradient(90deg, transparent 24%, var(--color) 25%, var(--color) 26%, transparent 27%, transparent 74%, var(--color) 75%, var(--color) 76%, transparent 77%, transparent);
-          background-size: 55px 55px;
+          background-color: transparent;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='25%25' stop-color='%23242424'/%3E%3Cstop offset='100%25' stop-color='%238A8A8A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='6' width='108' height='108' rx='10' ry='10' fill='url(%23g)' fill-opacity='0.1' stroke='rgba(255,255,255,0.05)' stroke-width='1'/%3E%3C/svg%3E");
+          background-size: 300px 300px;
+          background-repeat: repeat;
         }
 
+        /* Fade edges into surrounding bg */
         .features-bg::before {
           content: '';
           position: absolute;
           inset: 0;
-          background: linear-gradient(
-            to bottom,
-            #242424 0%,
-            transparent 8%,
-            transparent 92%,
-            #242424 100%
-          );
+          background:
+            linear-gradient(to bottom, #242424 2%, transparent 30%, transparent 90%, #242424 100%);
           pointer-events: none;
           z-index: 1;
         }
@@ -65,13 +60,8 @@ const LandingPage = () => {
           content: '';
           position: absolute;
           inset: 0;
-          background: linear-gradient(
-            to right,
-            #242424 0%,
-            transparent 8%,
-            transparent 92%,
-            #242424 100%
-          );
+          background:
+            linear-gradient(to right, #242424 2%, transparent 30%, transparent 92%, #242424 100%);
           pointer-events: none;
           z-index: 1;
         }
@@ -79,6 +69,23 @@ const LandingPage = () => {
         .features-content {
           position: relative;
           z-index: 2;
+        }
+
+        /* ── Hero wrapper ── */
+        .hero-wrapper {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .hero-wrapper > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        /* SVG bg — z-index 0 so it stays behind content */
+        .hero-wrapper svg {
+          z-index: 0 !important;
+          position: absolute !important;
         }
 
         @media (max-width: 768px) {
@@ -105,6 +112,29 @@ const LandingPage = () => {
             padding: "0 2rem",
           }}
         >
+
+          <svg
+            viewBox="0 0 1651 1170"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid slice"
+            style={{
+              position: "absolute",
+              top: 100,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "min(calc(100% - 4rem), 1600px)", /* 4rem = 2rem padding each side, matches navbar */
+              height: "800px",
+              borderRadius: "20px",
+              zIndex: 0,
+            }}
+          >
+            <path
+              d="M1650.99 935.278C1651.01 956.817 1633.55 974.288 1612.02 974.3L577.307 974.903C548.18 974.92 520.507 987.637 501.523 1009.73L409.291 1117.06C380.795 1150.22 339.25 1169.29 295.528 1169.29L39.0175 1169.29C17.4786 1169.29 0.0175649 1151.83 0.0172137 1130.29L-1.68418e-08 39.9175C-0.000346344 18.387 17.4468 0.929392 38.9773 0.916839L1611.45 6.41658e-06C1632.99 -0.012552 1650.46 17.4383 1650.48 38.9775L1650.99 935.278Z"
+              fill="#1D1B1B"
+            />
+          </svg>
+
           <section
             className="hero"
             style={{
@@ -134,20 +164,16 @@ const LandingPage = () => {
                   border: "none",
                   padding: "0.9rem 2.2rem",
                   fontSize: "14px",
-                  fontWeight: 600,
                   fontFamily: "'Inter', sans-serif",
                   cursor: "pointer",
                   borderRadius: "5px",
-                  transition: "transform 0.2s, box-shadow 0.2s, background 0.2s",
-                  transform: btnHovered ? "translateY(-2px)" : "translateY(0)",
-                  boxShadow: btnHovered ? "0 8px 30px rgba(226, 78, 64, 0.35)" : "none",
+
                 }}
               >
                 Start chatting
               </button>
             </div>
 
-            {/* Right / Cards */}
             <div
               className="hero-right"
               onMouseEnter={() => setCardHovered(true)}
@@ -160,7 +186,7 @@ const LandingPage = () => {
           </section>
         </div>
 
-        {/* Features Section — grid background with fade overlay */}
+        {/* Features Section — rounded box grid background */}
         <div className="features-bg">
           <div className="features-content" style={{ display: "flex", justifyContent: "center", width: "100%", padding: "4rem 2rem 6rem" }}>
             <div style={{ width: "100%", maxWidth: "1200px", display: "flex", flexDirection: "column", gap: "6rem" }}>
@@ -203,7 +229,6 @@ const LandingPage = () => {
                   />
                 </div>
               ))}
-
             </div>
           </div>
         </div>
