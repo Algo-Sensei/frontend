@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy the rest of the project
 COPY . .
@@ -18,7 +18,7 @@ RUN npm run build
 
 
 # Stage 2: Serve the app using Nginx
-FROM nginx:alpine
+FROM node
 
 # Copy build output to nginx html folder
 COPY --from=build /app/build /usr/share/nginx/html
@@ -27,4 +27,4 @@ COPY --from=build /app/build /usr/share/nginx/html
 EXPOSE 80
 
 # Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "-g", "daemon off;"]

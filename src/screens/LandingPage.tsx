@@ -1,6 +1,45 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Navbar from "../components/navbar";
+import AboutUs from "../components/landing-page/AboutUs";
 
+const useScrollReveal = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.2, rootMargin: "0px 0px -80px 0px" } // ← added rootMargin
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, visible };
+};
+
+// Wrapper component for each feature row
+const RevealRow = ({ children, delay }: { children: React.ReactNode; delay: number }) => {
+  const { ref, visible } = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(60px)", // ← increased from 40px
+        transition: `opacity 0.8s ease ${delay}s, transform 0.8s ease ${delay}s`,
+        willChange: "opacity, transform", // ← helps with rendering
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 const LandingPage = () => {
   const [btnHovered, setBtnHovered] = useState(false);
   const [cardHovered, setCardHovered] = useState(false);
@@ -232,10 +271,13 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-
+        
+        {/* About us */}
+        <AboutUs />
       </div>
     </>
   );
 };
 
 export default LandingPage;
+

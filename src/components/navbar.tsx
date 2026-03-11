@@ -1,11 +1,73 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+// ── ThemeSwitch ──────────────────────────────────────────────────────────────
+const ThemeSwitch = ({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: () => void;
+}) => (
+  <label
+    style={{
+      fontSize: "17px",
+      position: "relative",
+      display: "inline-block",
+      width: "3.3em",
+      height: "1.8em",
+      borderRadius: "30px",
+      boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+      cursor: "pointer",
+      flexShrink: 0,
+    }}
+  >
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      style={{ opacity: 0, width: 0, height: 0 }}
+    />
+    <span
+      style={{
+        position: "absolute",
+        cursor: "pointer",
+        inset: 0,
+        backgroundColor: checked ? "#00a6ff" : "#2a2a2a",
+        transition: "background-color 0.4s",
+        borderRadius: "30px",
+        overflow: "hidden",
+      }}
+    >
+      { /* Moon & Sun */ }
+      <span
+        style={{
+          position: "absolute",
+          height: "1.2em",
+          width: "1.2em",
+          borderRadius: "10px",
+          bottom: "0.3em",
+          transition: "transform 0.4s, box-shadow 0.4s",
+          transitionTimingFunction: "cubic-bezier(0.81, -0.04, 0.38, 1.5)",
+          boxShadow: checked
+            ? "inset 15px -4px 0px 15px #ffcf48"
+            : "inset 8px -4px 0px 0px #fff",
+          transform: checked ? "translateX(1.8em)" : "translateX(0.3em)",
+        }}
+      />
+
+      
+    </span>
+  </label>
+);
+
+// ── Navbar ───────────────────────────────────────────────────────────────────
 const Navbar = () => {
   const { pathname } = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [loginHovered, setLoginHovered] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -20,6 +82,28 @@ const Navbar = () => {
     { label: "Contact Us",  path: "/contact" },
   ];
 
+  const linkStyle = (path: string): React.CSSProperties => ({
+    textDecoration: "none",
+    fontSize: "0.9rem",
+    fontFamily: "'Inter', sans-serif",
+    letterSpacing: "0.02em",
+    transition: "color 0.2s",
+    color: pathname === path ? "#E24E40" : hoveredLink === path ? "#D9D9D9" : "#FFFFFF",
+    position: "relative",
+    paddingBottom: "3px",
+  });
+
+  const underlineStyle = (isHovered: boolean, isActive: boolean): React.CSSProperties => ({
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    width: isHovered || isActive ? "100%" : "0%",
+    height: "2px",
+    background: isActive ? "#E24E40" : "#D9D9D9",
+    transition: "width 0.25s ease",
+    borderRadius: "2px",
+  });
+
   return (
     <>
       <style>{`
@@ -31,7 +115,6 @@ const Navbar = () => {
         }
       `}</style>
 
-      {/* Wrapper */}
       <div
         className="navbar-wrapper"
         style={{
@@ -46,7 +129,6 @@ const Navbar = () => {
           boxSizing: "border-box",
         }}
       >
-        {/* Liquid Glass Nav */}
         <nav
           className="navbar-inner"
           style={{
@@ -59,8 +141,6 @@ const Navbar = () => {
             width: "100%",
             maxWidth: "1600px",
             transition: "all 0.3s ease",
-
-            /* Liquid glass effect */
             background: scrolled
               ? "rgba(255, 255, 255, 0.12)"
               : "rgba(255, 255, 255, 0.06)",
@@ -73,30 +153,17 @@ const Navbar = () => {
           }}
         >
           {/* Links */}
-          <div
-            className="navbar-links"
-            style={{ display: "flex", gap: "3rem" }}
-          >
+          <div className="navbar-links" style={{ display: "flex", gap: "3rem" }}>
             {links.map(({ label, path }) => (
               <Link
                 key={path}
                 to={path}
                 onMouseEnter={() => setHoveredLink(path)}
                 onMouseLeave={() => setHoveredLink(null)}
-                style={{
-                  textDecoration: "none",
-                  fontSize: "0.9rem",
-                  fontFamily: "'Inter', sans-serif",
-                  letterSpacing: "0.02em",
-                  transition: "color 0.2s",
-                  color: pathname === path
-                    ? "#E24E40"
-                    : hoveredLink === path
-                    ? "#D9D9D9"
-                    : "#FFFFFF",
-                }}
+                style={linkStyle(path)}
               >
                 {label}
+                <span style={underlineStyle(hoveredLink === path, pathname === path)} />
               </Link>
             ))}
           </div>
@@ -106,6 +173,8 @@ const Navbar = () => {
             className="navbar-right"
             style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}
           >
+            <ThemeSwitch checked={darkMode} onChange={() => setDarkMode(!darkMode)} />
+
             <span
               style={{
                 fontSize: "1rem",
@@ -130,9 +199,12 @@ const Navbar = () => {
                 fontFamily: "'Inter', sans-serif",
                 transition: "color 0.2s",
                 color: loginHovered ? "#D9D9D9" : "#FFFFFF",
+                position: "relative",
+                paddingBottom: "3px",
               }}
             >
               Login
+              <span style={underlineStyle(loginHovered, pathname === "/login")} />
             </Link>
           </div>
         </nav>
