@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "../components/navbar";
 import AboutUs from "../components/landing-page/AboutUs";
+import ContactUs from "../components/landing-page/ContactUs";
 
 const useScrollReveal = () => {
   const ref = useRef<HTMLDivElement>(null);
@@ -274,6 +275,8 @@ const LandingPage = () => {
         
         {/* About us */}
         <AboutUs />
+        {/* Contact us tanginna*/}
+        <ContactUs />
       </div>
     </>
   );
