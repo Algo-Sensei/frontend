@@ -29,7 +29,7 @@ const teamMembers: TeamMember[] = [
   {
     name: "Jamill Francis Ardines",
     image: JFArdines,
-    role: "Full Stack Developer",
+    role: "Full Stack Developer & UI/UX Designer",
     socials: {
       github: "https://github.com/jamardines-dev",
       email: "jamardines16@gmail.com",
