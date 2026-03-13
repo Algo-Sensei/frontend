@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "../components/navbar";
 import AboutUs from "../components/landing-page/AboutUs";
+import ContactUs from "../components/landing-page/ContactUs";
 
 const FADE_MS = 600;
 
@@ -313,6 +314,8 @@ const LandingPage = () => {
         </div>
 
         <AboutUs />
+        {/* Contact us tanginna*/}
+        <ContactUs />
       </div>
     </>
   );
