@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+import {
+  wrapperStyle,
+  navInnerStyle,
+  linksContainer,
+  rightContainer,
+  logoText,
+  divider,
+  loginLink,
+  linkStyle,
+  underlineStyle
+} from "./NavbarStyles";
+
 // ── ThemeSwitch ──────────────────────────────────────────────────────────────
 const ThemeSwitch = ({
   checked,
@@ -61,6 +73,22 @@ const ThemeSwitch = ({
   </label>
 );
 
+const scrollToSection = (id: string) => {
+  const element = document.getElementById(id);
+
+  if (!element) return;
+
+  const navbarOffset = 90;
+  const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+  const offsetPosition = elementPosition - navbarOffset;
+
+  window.scrollTo({
+    top: offsetPosition,
+    behavior: "smooth"
+  });
+
+}
+
 // ── Navbar ───────────────────────────────────────────────────────────────────
 const Navbar = () => {
   const { pathname } = useLocation();
@@ -76,33 +104,11 @@ const Navbar = () => {
   }, []);
 
   const links = [
-    { label: "Home",        path: "/" },
-    { label: "Our Project", path: "/project" },
-    { label: "About Us",    path: "/about" },
-    { label: "Contact Us",  path: "/contact" },
+    { label: "Home",        section: "home" },
+    { label: "Our Project", section: "project" },
+    { label: "About Us",    section: "about" },
+    { label: "Contact Us",  section: "contact" },
   ];
-
-  const linkStyle = (path: string): React.CSSProperties => ({
-    textDecoration: "none",
-    fontSize: "0.9rem",
-    fontFamily: "'Inter', sans-serif",
-    letterSpacing: "0.02em",
-    transition: "color 0.2s",
-    color: pathname === path ? "#E24E40" : hoveredLink === path ? "#D9D9D9" : "#FFFFFF",
-    position: "relative",
-    paddingBottom: "3px",
-  });
-
-  const underlineStyle = (isHovered: boolean, isActive: boolean): React.CSSProperties => ({
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    width: isHovered || isActive ? "100%" : "0%",
-    height: "2px",
-    background: isActive ? "#E24E40" : "#D9D9D9",
-    transition: "width 0.25s ease",
-    borderRadius: "2px",
-  });
 
   return (
     <>
@@ -115,93 +121,44 @@ const Navbar = () => {
         }
       `}</style>
 
-      <div
-        className="navbar-wrapper"
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          zIndex: 100,
-          display: "flex",
-          justifyContent: "center",
-          padding: "15px 2rem 0",
-          boxSizing: "border-box",
-        }}
-      >
-        <nav
-          className="navbar-inner"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "1rem 2rem",
-            fontFamily: "'Inter', sans-serif",
-            borderRadius: "10px",
-            width: "100%",
-            maxWidth: "1600px",
-            transition: "all 0.3s ease",
-            background: scrolled
-              ? "rgba(255, 255, 255, 0.12)"
-              : "rgba(255, 255, 255, 0.06)",
-            backdropFilter: "blur(24px) saturate(180%)",
-            WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            border: "1px solid rgba(255, 255, 255, 0.18)",
-            boxShadow: scrolled
-              ? "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15)"
-              : "0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
-          }}
-        >
+      <div className="navbar-wrapper" style={wrapperStyle}>
+        <nav className="navbar-inner" style={navInnerStyle(scrolled)}>
           {/* Links */}
-          <div className="navbar-links" style={{ display: "flex", gap: "3rem" }}>
-            {links.map(({ label, path }) => (
-              <Link
-                key={path}
-                to={path}
-                onMouseEnter={() => setHoveredLink(path)}
+          <div className="navbar-links" style={linksContainer}>
+            {links.map(({ label, section }) => (
+              <button
+                key={section}
+                onClick={() => scrollToSection(section)}
+                onMouseEnter={() => setHoveredLink(section)}
                 onMouseLeave={() => setHoveredLink(null)}
-                style={linkStyle(path)}
+                style={{
+                  ...linkStyle(label, section, hoveredLink),
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 {label}
-                <span style={underlineStyle(hoveredLink === path, pathname === path)} />
-              </Link>
+                <span style={underlineStyle(hoveredLink === section, pathname === section)} />
+              </button>
             ))}
           </div>
 
           {/* Right side */}
-          <div
-            className="navbar-right"
-            style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}
-          >
+          <div className="navbar-right" style={rightContainer}>
             <ThemeSwitch checked={darkMode} onChange={() => setDarkMode(!darkMode)} />
 
-            <span
-              style={{
-                fontSize: "1rem",
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                color: "#FFFFFF",
-                fontFamily: "'Inter', sans-serif",
-              }}
-            >
+            <span style={logoText}>
               AlgoSensei
             </span>
 
-            <span style={{ fontSize: "20px", color: "#ffffff" }}>|</span>
+            <span style={divider}>|</span>
 
             <Link
               to="/login"
               onMouseEnter={() => setLoginHovered(true)}
               onMouseLeave={() => setLoginHovered(false)}
-              style={{
-                textDecoration: "none",
-                fontSize: "0.9rem",
-                fontFamily: "'Inter', sans-serif",
-                transition: "color 0.2s",
-                color: loginHovered ? "#D9D9D9" : "#FFFFFF",
-                position: "relative",
-                paddingBottom: "3px",
-              }}
+              style={loginLink(loginHovered)}
             >
               Login
               <span style={underlineStyle(loginHovered, pathname === "/login")} />
