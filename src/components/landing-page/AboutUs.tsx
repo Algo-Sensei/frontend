@@ -14,6 +14,7 @@ const teamMembers: TeamMember[] = [
     role: "Project Manager & Main Developer",
     socials: {
       github: "https://github.com/FivePesos",
+      linkedin: "https://www.linkedin.com/in/john-paul-singco-0512a4236/",
       email: "johnpaul5sing@gmail.com ",
     }
   },
@@ -32,6 +33,7 @@ const teamMembers: TeamMember[] = [
     role: "Full Stack Developer & UI/UX Designer",
     socials: {
       github: "https://github.com/jamardines-dev",
+      linkedin: "https://www.linkedin.com/in/jam-ardines-33407b392/",
       email: "jamardines16@gmail.com",
     }
   },
@@ -76,6 +78,10 @@ const AboutUs = () => {
 
         {/* Carousel */}
         <TeamCarousel members={teamMembers} />
+        
+        <div className='oval1'></div>
+
+        <div className='oval2'></div>
 
       </div>
 
