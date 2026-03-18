@@ -1,4 +1,4 @@
-import './ContactUs.css'
+
 
 import { useState } from "react";
 import "./ContactUs.css";
@@ -123,7 +123,7 @@ export default function ContactUs() {
       {/* Footer */}
       <footer className="contact-footer">
         <div className="footer-divider" />
-        <p className="footer-text">© 2025 AlgoSensei. All rights reserved.</p>
+        <p className="footer-text">© 2026 AlgoSensei. All rights reserved.</p>
       </footer>
     </div>
   );

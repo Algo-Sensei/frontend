@@ -25,7 +25,18 @@
     </svg>
     );
 
-    // Spring Boot URL 
+    const ChevronLeft = () => (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <path
+        d="M15 18l-6-6 6-6"
+        stroke="#888"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        />
+    </svg>
+    );
+
     const BACKEND_URL = "http://localhost:8080";
 
     const LoginPage = () => {
@@ -38,9 +49,6 @@
         setTimeout(() => navigate(path), 400);
     };
 
-    // Redirects the browser to Spring Security's OAuth2 authorization endpoint.
-    // Spring handles the provider handshake and calls OAuth2LoginSuccessHandler on success,
-    // which then redirects back to /login-success?login=success on the frontend.
     const handleOAuthLogin = (provider: "google" | "microsoft" | "apple") => {
         window.location.href = `${BACKEND_URL}/oauth2/authorization/${provider}`;
     };
@@ -71,8 +79,33 @@
             backgroundColor: "#242424",
             fontFamily: "'Inter', sans-serif",
             animation: leaving ? "fadeOut 0.4s ease forwards" : "fadeIn 0.4s ease",
+            position: "relative",
             }}
         >
+            {/* ── Back button top-left ── */}
+            <button
+            onClick={() => handleNavigate("/")}
+            style={{
+                position: "absolute",
+                top: "24px",
+                left: "24px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "6px",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background-color 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#333")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            aria-label="Go back"
+            >
+            <ChevronLeft />
+            </button>
+
             <div
             style={{
                 display: "flex",
@@ -133,7 +166,6 @@
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#c94030")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#E24E40")}
-                // TODO: wire up email/password login
             >
                 Login
             </button>
