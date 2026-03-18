@@ -25,16 +25,24 @@
     </svg>
     );
 
+    // Spring Boot URL 
+    const BACKEND_URL = "http://localhost:8080";
+
     const LoginPage = () => {
     const navigate = useNavigate();
     const [username, setUsername] = useState("");
     const [leaving, setLeaving] = useState(false);
 
-
-    // navigate to signup
     const handleNavigate = (path: string) => {
         setLeaving(true);
         setTimeout(() => navigate(path), 400);
+    };
+
+    // Redirects the browser to Spring Security's OAuth2 authorization endpoint.
+    // Spring handles the provider handshake and calls OAuth2LoginSuccessHandler on success,
+    // which then redirects back to /login-success?login=success on the frontend.
+    const handleOAuthLogin = (provider: "google" | "microsoft" | "apple") => {
+        window.location.href = `${BACKEND_URL}/oauth2/authorization/${provider}`;
     };
 
     return (
@@ -125,7 +133,7 @@
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#c94030")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#E24E40")}
-                // todo to direct ai chat
+                // TODO: wire up email/password login
             >
                 Login
             </button>
@@ -156,13 +164,13 @@
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {[
-                { label: "Continue with Google",            icon: <GoogleIcon />,    onClick: () => alert("Google login") },
-                { label: "Continue with Microsoft Account", icon: <MicrosoftIcon />, onClick: () => alert("Microsoft login") },
-                { label: "Continue with Apple",             icon: <AppleIcon />,     onClick: () => alert("Apple login") },
-                ].map(({ label, icon, onClick }) => (
+                { label: "Continue with Google",            icon: <GoogleIcon />,    provider: "google"    as const },
+                { label: "Continue with Microsoft Account", icon: <MicrosoftIcon />, provider: "microsoft" as const },
+                { label: "Continue with Apple",             icon: <AppleIcon />,     provider: "apple"     as const },
+                ].map(({ label, icon, provider }) => (
                 <button
                     key={label}
-                    onClick={onClick}
+                    onClick={() => handleOAuthLogin(provider)}
                     style={{
                     display: "flex",
                     alignItems: "center",

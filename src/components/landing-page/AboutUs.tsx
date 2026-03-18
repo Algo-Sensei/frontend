@@ -11,7 +11,7 @@ const teamMembers: TeamMember[] = [
   {
     name: "John Paul Singco",
     image: JPSingco,
-    role: "Project Manager & Main Developer",
+    role: "Project Manager & Main Character Developer",
     socials: {
       github: "https://github.com/FivePesos",
       linkedin: "https://www.linkedin.com/in/john-paul-singco-0512a4236/",
