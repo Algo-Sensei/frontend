@@ -25,16 +25,32 @@
     </svg>
     );
 
+    const ChevronLeft = () => (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+        <path
+        d="M15 18l-6-6 6-6"
+        stroke="#888"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        />
+    </svg>
+    );
+
+    const BACKEND_URL = "http://localhost:8080";
+
     const LoginPage = () => {
     const navigate = useNavigate();
     const [username, setUsername] = useState("");
     const [leaving, setLeaving] = useState(false);
 
-
-    // navigate to signup
     const handleNavigate = (path: string) => {
         setLeaving(true);
         setTimeout(() => navigate(path), 400);
+    };
+
+    const handleOAuthLogin = (provider: "google" | "microsoft" | "apple") => {
+        window.location.href = `${BACKEND_URL}/oauth2/authorization/${provider}`;
     };
 
     return (
@@ -63,8 +79,33 @@
             backgroundColor: "#242424",
             fontFamily: "'Inter', sans-serif",
             animation: leaving ? "fadeOut 0.4s ease forwards" : "fadeIn 0.4s ease",
+            position: "relative",
             }}
         >
+            {/* ── Back button top-left ── */}
+            <button
+            onClick={() => handleNavigate("/")}
+            style={{
+                position: "absolute",
+                top: "24px",
+                left: "24px",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "6px",
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background-color 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#333")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            aria-label="Go back"
+            >
+            <ChevronLeft />
+            </button>
+
             <div
             style={{
                 display: "flex",
@@ -125,7 +166,6 @@
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#c94030")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#E24E40")}
-                // todo to direct ai chat
             >
                 Login
             </button>
@@ -156,13 +196,13 @@
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {[
-                { label: "Continue with Google",            icon: <GoogleIcon />,    onClick: () => alert("Google login") },
-                { label: "Continue with Microsoft Account", icon: <MicrosoftIcon />, onClick: () => alert("Microsoft login") },
-                { label: "Continue with Apple",             icon: <AppleIcon />,     onClick: () => alert("Apple login") },
-                ].map(({ label, icon, onClick }) => (
+                { label: "Continue with Google",            icon: <GoogleIcon />,    provider: "google"    as const },
+                { label: "Continue with Microsoft Account", icon: <MicrosoftIcon />, provider: "microsoft" as const },
+                { label: "Continue with Apple",             icon: <AppleIcon />,     provider: "apple"     as const },
+                ].map(({ label, icon, provider }) => (
                 <button
                     key={label}
-                    onClick={onClick}
+                    onClick={() => handleOAuthLogin(provider)}
                     style={{
                     display: "flex",
                     alignItems: "center",
