@@ -1,4 +1,4 @@
-    import React, { useState } from "react";
+    import React, { useState, useEffect } from "react";
     import { useNavigate } from "react-router-dom";
 
     const GoogleIcon = () => (
@@ -18,13 +18,7 @@
 
     const ChevronLeft = () => (
     <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-        <path
-        d="M15 18l-6-6 6-6"
-        stroke="#888"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        />
+        <path d="M15 18l-6-6 6-6" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
     );
 
@@ -34,6 +28,28 @@
     const navigate = useNavigate();
     const [username, setUsername] = useState("");
     const [leaving, setLeaving] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
+
+    //  check if backend already has a session (returned from OAuth)
+    useEffect(() => {
+        const checkSession = async () => {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+            credentials: "include", // important to include cookies for session
+            });
+            if (res.ok) {
+            // user is already logged in it will navigate to chat
+            navigate("/chat", { replace: true });
+            }
+        } catch (_) {
+            // not logged in, stay on login page
+        } finally {
+            setCheckingAuth(false);
+        }
+        };
+        checkSession();
+    }, [navigate]);
 
     const handleNavigate = (path: string) => {
         setLeaving(true);
@@ -41,8 +57,20 @@
     };
 
     const handleOAuthLogin = (provider: "google" | "github") => {
+        setLoading(true);
+        // redirect back to frontend after OAuth success
+        // redirects to: http://localhost:3000/chat
         window.location.href = `${BACKEND_URL}/oauth2/authorization/${provider}`;
     };
+
+    if (checkingAuth) {
+        return (
+        <div style={{ minHeight: "100vh", backgroundColor: "#242424", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 28, height: 28, border: "3px solid #444", borderTop: "3px solid #E24E40", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+        );
+    }
 
     return (
         <>
@@ -58,6 +86,7 @@
             from { opacity: 1; transform: translateY(0); }
             to   { opacity: 0; transform: translateY(-10px); }
             }
+            @keyframes spin { to { transform: rotate(360deg); } }
         `}</style>
 
         <div
@@ -73,7 +102,7 @@
             position: "relative",
             }}
         >
-            {/* Back button top-left */}
+            {/* Back button */}
             <button
             onClick={() => handleNavigate("/")}
             style={{
@@ -164,13 +193,7 @@
             <div style={{ color: "#FFFFFF", fontSize: "12px", fontFamily: "'Inter', sans-serif", marginBottom: "20px" }}>
                 Don't have an account?{" "}
                 <span
-                style={{
-                    color: "#D9D9D9",
-                    fontStyle: "italic",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    transition: "color 0.2s",
-                }}
+                style={{ color: "#D9D9D9", fontStyle: "italic", cursor: "pointer", userSelect: "none", transition: "color 0.2s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "#D9D9D9")}
                 onClick={() => handleNavigate("/signup")}
@@ -193,6 +216,7 @@
                 <button
                     key={label}
                     onClick={() => handleOAuthLogin(provider)}
+                    disabled={loading}
                     style={{
                     display: "flex",
                     alignItems: "center",
@@ -204,22 +228,24 @@
                     backgroundColor: "#2E2E2E",
                     color: "#FFFFFF",
                     fontSize: "15px",
-                    cursor: "pointer",
+                    cursor: loading ? "not-allowed" : "pointer",
                     fontFamily: "'Inter', sans-serif",
                     width: "100%",
                     transition: "background-color 0.2s",
+                    opacity: loading ? 0.6 : 1,
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#3d3d3d")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#2E2E2E")}
+                    onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = "#3d3d3d"; }}
+                    onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = "#2E2E2E"; }}
                 >
                     <span style={{ width: "24px", display: "flex", justifyContent: "center", flexShrink: 0 }}>
-                    {icon}
+                    {loading ? (
+                        <div style={{ width: 18, height: 18, border: "2px solid #555", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    ) : icon}
                     </span>
                     {label}
                 </button>
                 ))}
             </div>
-
             </div>
         </div>
         </>
