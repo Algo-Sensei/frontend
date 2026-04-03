@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 // @ts-ignore: CSS side-effect import without type declarations
 import "./AIChat.css";
+import Sidebar from "../../components/ui/sidebar";
 
 type Message = { id: string; role: "user" | "ai"; text: string; time: string; };
 type OpenAIMessage = { role: "system" | "user" | "assistant"; content: string; };
@@ -12,11 +13,9 @@ const OPENAI_API_KEY = "sk-..."; // OpenAI API Key here
 const OPENAI_API_URL = process.env.REACT_APP_API_URL + "/api/chat"; // backend endpoint
 const MODEL = "gpt-4o"; // model you want to use
 
-// System prompt sent to GPT
 const SYSTEM_PROMPT = `You are AlgoSensei, an expert algorithm and data structures tutor.
 You explain concepts clearly, analyze time/space complexity, and help with coding problems.
 Keep responses concise but thorough. Use plain text — no markdown formatting.`;
-
 
 function getTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -25,27 +24,110 @@ function getTime() {
 // -----------------
 // === API CALL ===
 // -----------------
-// this function is where the ChatGPT API will be called
+// Sends the full conversation history to the backend which calls ChatGPT
+// TODO: make sure OPENAI_API_KEY and OPENAI_API_URL are set correctly above
 async function fetchReply(history: OpenAIMessage[]): Promise<string> {
-  // connect to ChatGPT API here
-  // For now, this is a placeholder
-  return "This is where the API response will appear.";
+  // placeholder — remove this line once backend is ready:
+  // return "This is where the API response will appear.";
+
+  const response = await fetch(OPENAI_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...history],
+      max_tokens: 512,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as any)?.error?.message || `API error ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content?.trim() ?? "No response received.";
 }
 
-function IconClip() { return (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a4 4 0 0 1-5.66 0 4 4 0 0 1 0-5.66l9.19-9.19a2.5 2.5 0 0 1 3.53 3.53l-9.19 9.19a1.5 1.5 0 0 1-2.12 0 1.5 1.5 0 0 1 0-2.12l8.48-8.48" /></svg>); }
-function IconSend() { return (<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>); }
+function IconClip() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.44 11.05l-9.19 9.19a4 4 0 0 1-5.66 0 4 4 0 0 1 0-5.66l9.19-9.19a2.5 2.5 0 0 1 3.53 3.53l-9.19 9.19a1.5 1.5 0 0 1-2.12 0 1.5 1.5 0 0 1 0-2.12l8.48-8.48" />
+    </svg>
+  );
+}
+
+function IconSend() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  );
+}
+
+const InputBox = ({
+  textareaRef,
+  onKeyDown,
+  onSend,
+  canSend,
+  isTyping,
+}: {
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onSend: () => void;
+  canSend: boolean;
+  isTyping: boolean;
+}) => (
+  <div className="ai-input-card">
+    <div className="ai-input-row">
+      <textarea
+        ref={textareaRef}
+        onKeyDown={onKeyDown}
+        placeholder="Ask me about algorithms, data structures, complexity..."
+        rows={1}
+        maxLength={500}
+        className="ai-textarea"
+        disabled={isTyping}
+      />
+      <button
+        onClick={onSend}
+        disabled={!canSend || isTyping}
+        className={`ai-send-btn${canSend && !isTyping ? " active" : ""}`}
+      >
+        <IconSend />
+      </button>
+    </div>
+    <div className="ai-divider" />
+    <div className="ai-input-footer">
+      {/* todo implement file upload functionality */}
+      <button className="ai-clip-btn"><IconClip /><span>Attach file</span></button>
+    </div>
+  </div>
+);
+
+const SIDEBAR_EXPANDED = 220;
+const SIDEBAR_COLLAPSED = 56;
 
 export default function AIChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canSend, setCanSend] = useState(false);
-  const historyRef = useRef<OpenAIMessage[]>([]); //this stores the conversation history
+  // track sidebar collapsed state so chat margin stays in sync
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasMessages = messages.length > 0;
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -58,19 +140,28 @@ export default function AIChat() {
     };
     el.addEventListener("input", handleInput);
     return () => el.removeEventListener("input", handleInput);
-  }, []);
+  }, [hasMessages]);
 
   const resetTextarea = () => {
-    if (!textareaRef.current) return;
-    textareaRef.current.value = "";
-    textareaRef.current.style.height = "auto";
-    textareaRef.current.style.overflowY = "hidden";
+    const el = textareaRef.current;
+    if (!el) return;
+    el.value = "";
+    el.style.height = "auto";
+    el.style.overflowY = "hidden";
     setCanSend(false);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setError(null);
+    historyRef.current = [];
+    resetTextarea();
+  };
+
   const send = async () => {
-    if (!textareaRef.current) return;
-    const trimmed = textareaRef.current.value.trim();
+    const el = textareaRef.current;
+    if (!el) return;
+    const trimmed = el.value.trim();
     if (!trimmed || isTyping) return;
 
     setError(null);
@@ -78,13 +169,10 @@ export default function AIChat() {
     resetTextarea();
     setIsTyping(true);
 
-    // add user's message to history
     historyRef.current.push({ role: "user", content: trimmed });
 
     try {
-      // Call ChatGPT API here and get the assistant reply
       const reply = await fetchReply(historyRef.current);
-      // Add assistant response to history
       historyRef.current.push({ role: "assistant", content: reply });
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "ai", text: reply, time: getTime() }]);
     } catch (err: any) {
@@ -98,55 +186,66 @@ export default function AIChat() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  const InputBox = () => (
-    <div className="ai-input-card">
-      <div className="ai-input-row">
-        <textarea ref={textareaRef} onKeyDown={handleKeyDown} placeholder="Ask me about algorithms, data structures, complexity..." rows={1} maxLength={500} className="ai-textarea" disabled={isTyping} />
-        <button onClick={send} disabled={!canSend || isTyping} className="ai-send-btn" style={{ opacity: canSend && !isTyping ? 1 : 0.4, cursor: canSend && !isTyping ? "pointer" : "default" }}><IconSend /></button>
-      </div>
-      <div className="ai-divider" />
-      <div className="ai-input-footer">
-        <button className="ai-clip-btn"><IconClip /><span>Attach file</span></button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="ai-root">
-      {!hasMessages ? (
-        <div className="ai-empty">
-          <h1 className="ai-empty-title">Got any algorithm questions?</h1>
-          <div style={{ width: "100%", maxWidth: 580 }}><InputBox /></div>
-          {error && <p className="ai-error-text">{error}</p>}
-        </div>
-      ) : (
-        <>
-          <div className="ai-feed">
-            {messages.map(msg => (
-              <div key={msg.id} className="ai-msg-row" style={{ justifyContent: msg.role === "user" ? "flex-end" : "flex-start", animation: "fadeUp 0.25s ease" }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "68%" }}>
-                  <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"}>{msg.text}</div>
-                  <span className="ai-time">{msg.time}</span>
-                </div>
-              </div>
-            ))}
+    // sidebar is position:absolute so it never affects the chat layout
+    <div style={{ position: "relative", height: "100vh", width: "100vw", overflow: "hidden", background: "#242424" }}>
 
-            {isTyping && (
-              <div className="ai-msg-row" style={{ justifyContent: "flex-start" }}>
-                <div className="ai-typing-bubble">
-                  {[0,0.2,0.4].map((d,i)=><span key={i} className="ai-dot" style={{animationDelay:`${d}s`}} />)}
-                </div>
-              </div>
-            )}
+      {/* sidebar floats on top — does not push the chat */}
+      <Sidebar onNewChat={handleNewChat} onCollapse={setSidebarCollapsed} />
 
-            {error && <div className="ai-msg-row" style={{ justifyContent: "center" }}><p className="ai-error-text">{error}</p></div>}
-
-            <div ref={bottomRef} />
+      {/* chat area — margin-left matches sidebar width, transitions together */}
+      <div
+        className="ai-root"
+        style={{
+          marginLeft: sidebarCollapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED,
+          transition: "margin-left 0.25s cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
+        {!hasMessages ? (
+          <div className="ai-empty">
+            <h1 className="ai-empty-title">Got any algorithm questions?</h1>
+            <div style={{ width: "100%", maxWidth: 580 }}>
+              <InputBox textareaRef={textareaRef} onKeyDown={handleKeyDown} onSend={send} canSend={canSend} isTyping={isTyping} />
+            </div>
+            {error && <p className="ai-error-text">{error}</p>}
           </div>
+        ) : (
+          <>
+            <div className="ai-feed">
+              {messages.map(msg => (
+                <div key={msg.id} className="ai-msg-row" style={{ justifyContent: msg.role === "user" ? "flex-end" : "flex-start", animation: "fadeUp 0.25s ease" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "68%" }}>
+                    <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"}>{msg.text}</div>
+                    <span className="ai-time">{msg.time}</span>
+                  </div>
+                </div>
+              ))}
 
-          <div className="ai-bottom-bar"><div style={{ width: "100%", maxWidth: 700 }}><InputBox /></div></div>
-        </>
-      )}
+              {isTyping && (
+                <div className="ai-msg-row" style={{ justifyContent: "flex-start" }}>
+                  <div className="ai-typing-bubble">
+                    {[0, 0.2, 0.4].map((d, i) => <span key={i} className="ai-dot" style={{ animationDelay: `${d}s` }} />)}
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="ai-msg-row" style={{ justifyContent: "center" }}>
+                  <p className="ai-error-text">{error}</p>
+                </div>
+              )}
+
+              <div ref={bottomRef} />
+            </div>
+
+            <div className="ai-bottom-bar">
+              <div style={{ width: "100%", maxWidth: 700 }}>
+                <InputBox textareaRef={textareaRef} onKeyDown={handleKeyDown} onSend={send} canSend={canSend} isTyping={isTyping} />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
