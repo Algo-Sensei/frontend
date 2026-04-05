@@ -100,12 +100,18 @@ export default function Sidebar({
   onNewChat: () => void;
   onCollapse: (collapsed: boolean) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // starts collapsed so sidebar is closed on login
+  const [collapsed, setCollapsed] = useState(true);
   const [active, setActive] = useState<ActiveItem>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [history, setHistory] = useState<ChatHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // notify AIChat of initial collapsed state on mount
+  useEffect(() => {
+    onCollapse(true);
+  }, []);
 
   useEffect(() => {
     if (active !== "history") return;
@@ -124,7 +130,7 @@ export default function Sidebar({
   const handleToggleCollapse = () => {
     const next = !collapsed;
     setCollapsed(next);
-    onCollapse(next); // notify AIChat to adjust margin
+    onCollapse(next);
     setActive(null);
   };
 
