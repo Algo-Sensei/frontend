@@ -38,20 +38,21 @@ const LoginPage = () => {
   useEffect(() => {
   const checkSession = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+      const res = await fetch(`${BACKEND_URL}/api/auth/session`, {
+        method: "GET",
         credentials: "include",
       });
+
       if (res.ok) {
-        // Only redirect if we're not explicitly trying to log in
-        // Remove this if you want login page to always show
-        navigate("/chat", { replace: true });
+        navigate("/chat", { replace: true }); // ✅ only redirect if logged in
       }
     } catch (_) {
-      // not logged in
+      // not logged in → stay on login page
     } finally {
       setCheckingAuth(false);
     }
   };
+
   checkSession();
 }, [navigate]);
 
