@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./screens/authscreen/LoginPage";
 import SignUpPage from "./screens/authscreen/SignUpPage";
-import LandingPage from "./screens/LandingPage";
+import LandingPage from "./screens/pages/LandingPage";
 import AIChat from "./screens/pages/AIChat";
 
 function App() {

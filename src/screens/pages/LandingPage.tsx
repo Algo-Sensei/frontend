@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import Navbar from "../components/landing-page/Navbar";
-import Hero from "../components/landing-page/Hero";
-import OurProject from "../components/landing-page/OurProject";
-import AboutUs from "../components/landing-page/AboutUs";
-import ContactUs from "../components/landing-page/ContactUs";
+import Navbar from "../../components/landing-page/Navbar";
+import Hero from "../../components/landing-page/Hero";
+import OurProject from "../../components/landing-page/OurProject";
+import AboutUs from "../../components/landing-page/AboutUs";
+import ContactUs from "../../components/landing-page/ContactUs";
 
 const LandingPage = () => {
 
