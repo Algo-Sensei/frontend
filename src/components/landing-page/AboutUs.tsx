@@ -83,7 +83,8 @@ const AboutUs = () => {
       <div 
         style={{ 
           maxWidth: "800px", 
-          textAlign: "center" }}
+          textAlign: "center",
+        justifyContent: "center",}}
       >
         <p>
             We’re a development team from the University of Cebu working behind AlgoSensie, an AI-powered mentor designed to help developers of all levels strengthen their data structures and algorithm skills.

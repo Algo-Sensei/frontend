@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getOAuthAuthorizationUrl, loginWithEmail } from "../../api";
 
 const GoogleIcon = () => (
   <svg width="22" height="22" viewBox="0 0 48 48">
@@ -22,8 +23,6 @@ const ChevronLeft = () => (
   </svg>
 );
 
-const BACKEND_URL = "http://localhost:8080";
-
 const LoginPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -32,29 +31,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
-  // Check if backend already has a session (returned from OAuth)
-  useEffect(() => {
-  const checkSession = async () => {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/session`, {
-        method: "GET",
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        navigate("/chat", { replace: true }); // ✅ only redirect if logged in
-      }
-    } catch (_) {
-      // not logged in → stay on login page
-    } finally {
-      setCheckingAuth(false);
-    }
-  };
-
-  checkSession();
-}, [navigate]);
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const handleNavigate = (path: string) => {
     setLeaving(true);
@@ -65,29 +42,32 @@ const LoginPage = () => {
   // and redirects back to /chat on success
   const handleOAuthLogin = (provider: "google" | "github") => {
     setOauthLoading(provider);
-    window.location.href = `${BACKEND_URL}/oauth2/authorization/${provider}`;
+    window.location.href = getOAuthAuthorizationUrl(provider);
   };
 
   // Email/password login via backend
   const handleEmailLogin = async () => {
-    if (!email.trim()) return;
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setLoginError("Email is required.");
+      return;
+    }
+    if (!emailPattern.test(trimmedEmail)) {
+      setLoginError("Enter a valid email address.");
+      return;
+    }
+    if (!password.trim()) {
+      setLoginError("Password is required.");
+      return;
+    }
+
     setLoginError(null);
     setLoading(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        navigate("/chat", { replace: true });
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setLoginError((data as any)?.message || "Invalid email or password.");
-      }
+      await loginWithEmail(trimmedEmail, password);
+      navigate("/chat", { replace: true });
     } catch (_) {
-      setLoginError("Could not connect to the server. Please try again.");
+      setLoginError(_ instanceof Error ? _.message : "Could not connect to the server. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -96,15 +76,6 @@ const LoginPage = () => {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleEmailLogin();
   };
-
-  if (checkingAuth) {
-    return (
-      <div style={{ minHeight: "100vh", backgroundColor: "#242424", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 28, height: 28, border: "3px solid #444", borderTop: "3px solid #E24E40", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -213,19 +184,19 @@ const LoginPage = () => {
 
           <button
             onClick={handleEmailLogin}
-            disabled={loading || !email.trim()}
+            disabled={loading}
             style={{
               height: "48px", borderRadius: "5px", border: "none",
               backgroundColor: "#E24E40", color: "#fff",
               fontWeight: "600", fontSize: "16px",
-              cursor: loading || !email.trim() ? "not-allowed" : "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               fontFamily: "'Inter', sans-serif", marginBottom: "16px",
               transition: "background-color 0.2s",
-              opacity: loading || !email.trim() ? 0.6 : 1,
+              opacity: loading ? 0.6 : 1,
               display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
             }}
-            onMouseEnter={(e) => { if (!loading && email.trim()) e.currentTarget.style.backgroundColor = "#c94030"; }}
-            onMouseLeave={(e) => { if (!loading && email.trim()) e.currentTarget.style.backgroundColor = "#E24E40"; }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = "#c94030"; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = "#E24E40"; }}
           >
             {loading
               ? <div style={{ width: 18, height: 18, border: "2px solid #ffffff55", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
