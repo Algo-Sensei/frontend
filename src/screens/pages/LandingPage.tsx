@@ -20,20 +20,48 @@ const LandingPage = () => {
         }
 
         .features-bg {
-          position: relative; width: 100%; background-color: transparent;
+          position: relative; width: 100%; background-color: transparent; z-index: 1; overflow: hidden;
           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='25%25' stop-color='%23242424'/%3E%3Cstop offset='100%25' stop-color='%238A8A8A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='6' width='108' height='108' rx='10' ry='10' fill='url(%23g)' fill-opacity='0.1' stroke='rgba(255,255,255,0.05)' stroke-width='1'/%3E%3C/svg%3E");
           background-size: 300px 300px; background-repeat: repeat;
         }
+        .features-bg::before,
+        .features-bg::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: min(28vw, 360px);
+          pointer-events: none;
+          z-index: 1;
+          filter: blur(18px);
+        }
         .features-bg::before {
-          content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-          background: linear-gradient(to bottom, #242424 2%, transparent 30%, transparent 90%, #242424 100%);
+          left: -32px;
+          background: linear-gradient(90deg, #242424 0%, rgba(36, 36, 36, 0.88) 34%, rgba(36, 36, 36, 0) 100%);
         }
         .features-bg::after {
-          content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-          background: linear-gradient(to right, #242424 2%, transparent 30%, transparent 92%, #242424 100%);
+          right: -32px;
+          background: linear-gradient(270deg, #242424 0%, rgba(36, 36, 36, 0.88) 34%, rgba(36, 36, 36, 0) 100%);
+        }
+        .features-edge {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: min(18vw, 220px);
+          pointer-events: none;
+          z-index: 1;
+          filter: blur(18px);
+        }
+        .features-edge-top {
+          top: -32px;
+          background: linear-gradient(180deg, #242424 0%, rgba(36, 36, 36, 0.9) 36%, rgba(36, 36, 36, 0) 100%);
+        }
+        .features-edge-bottom {
+          bottom: -32px;
+          background: linear-gradient(0deg, #242424 0%, rgba(36, 36, 36, 0.9) 36%, rgba(36, 36, 36, 0) 100%);
         }
         .features-content { position: relative; z-index: 2; }
-        .hero-wrapper { position: relative; overflow: hidden; }
+        .hero-wrapper { position: relative; overflow: visible; z-index: 2; }
         .hero-wrapper > * { position: relative; z-index: 1; }
         .hero-wrapper svg { z-index: 0 !important; position: absolute !important; }
 

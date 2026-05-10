@@ -188,6 +188,8 @@ const OurProject = () => {
   return (
     <>
       <div className="features-bg">
+          <div className="features-edge features-edge-top" />
+          <div className="features-edge features-edge-bottom" />
           <div className="features-content" style={{ display: "flex", justifyContent: "center", width: "100%", padding: "8rem 2rem 10rem" }}>
             <div style={{ width: "100%", maxWidth: "1200px", display: "flex", flexDirection: "column", gap: "16rem" }}>
               {features.map((f, i) => (

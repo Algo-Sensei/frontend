@@ -13,66 +13,6 @@ import {
   underlineStyle
 } from "./NavbarStyles";
 
-// ── ThemeSwitch ──────────────────────────────────────────────────────────────
-const ThemeSwitch = ({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: () => void;
-}) => (
-  <label
-    style={{
-      fontSize: "17px",
-      position: "relative",
-      display: "inline-block",
-      width: "3.3em",
-      height: "1.8em",
-      borderRadius: "30px",
-      boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-      cursor: "pointer",
-      flexShrink: 0,
-    }}
-  >
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      style={{ opacity: 0, width: 0, height: 0 }}
-    />
-    <span
-      style={{
-        position: "absolute",
-        cursor: "pointer",
-        inset: 0,
-        backgroundColor: checked ? "#00a6ff" : "#2a2a2a",
-        transition: "background-color 0.4s",
-        borderRadius: "30px",
-        overflow: "hidden",
-      }}
-    >
-      { /* Moon & Sun */ }
-      <span
-        style={{
-          position: "absolute",
-          height: "1.2em",
-          width: "1.2em",
-          borderRadius: "10px",
-          bottom: "0.3em",
-          transition: "transform 0.4s, box-shadow 0.4s",
-          transitionTimingFunction: "cubic-bezier(0.81, -0.04, 0.38, 1.5)",
-          boxShadow: checked
-            ? "inset 15px -4px 0px 15px #ffcf48"
-            : "inset 8px -4px 0px 0px #fff",
-          transform: checked ? "translateX(1.8em)" : "translateX(0.3em)",
-        }}
-      />
-
-      
-    </span>
-  </label>
-);
-
 const scrollToSection = (id: string) => {
   const element = document.getElementById(id);
 
@@ -95,8 +35,6 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [loginHovered, setLoginHovered] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
-  const [darkMode, setDarkMode] = useState(true);
-
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
@@ -146,8 +84,6 @@ const Navbar = () => {
 
           {/* Right side */}
           <div className="navbar-right" style={rightContainer}>
-            <ThemeSwitch checked={darkMode} onChange={() => setDarkMode(!darkMode)} />
-
             <span style={logoText}>
               AlgoSensei
             </span>

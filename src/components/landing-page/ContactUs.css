@@ -5,8 +5,8 @@
 .contact-page {
   background-color: #000;
   color: #fff;
-  min-height: 100vh;
-  margin-top: 100px;
+  min-height: calc(100vh - 100px);
+  padding-top: 100px;
   font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
   display: flex;
   flex-direction: column;
@@ -17,8 +17,19 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1.4fr;
   gap: 48px;
-  padding: 64px 80px 80px;
-  flex: 1;
+  padding: 64px 80px 40px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ── Left Column ────────────────── */
@@ -94,25 +105,34 @@
 /* ── Right Column — Form ────────── */
 .contact-right {
   padding-top: 4px;
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .form-heading {
-  font-size: 2.5rem;
+  font-size: clamp(2.4rem, 4vw, 3rem);
   font-weight: 800;
-  margin: 0 0 6px;
-  letter-spacing: -0.3px;
+  margin: 0 0 8px;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
 }
 
 .form-subtext {
-  font-size: 0.9rem;
-  color: #aaa;
-  margin: 0 0 24px;
+  font-size: 0.98rem;
+  color: #b4b4b4;
+  margin: 0 0 22px;
+  line-height: 1.65;
+  max-width: 36ch;
 }
 
 .contact-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 /* ── Inputs ─────────────────────── */
@@ -123,14 +143,14 @@
 }
 
 .form-input {
-  background-color: #2a2a2a;
-  border: none;
-  border-radius: 8px;
+  background-color: #232323;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
   color: #fff;
-  font-size: 0.88rem;
-  padding: 14px 16px;
+  font-size: 0.92rem;
+  padding: 15px 16px;
   outline: none;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
   width: 100%;
   box-sizing: border-box;
 }
@@ -140,8 +160,9 @@
 }
 
 .form-input:focus {
-  background-color: #333;
-  box-shadow: 0 0 0 2px rgba(224, 96, 96, 0.5);
+  background-color: #2b2b2b;
+  border-color: rgba(226, 78, 73, 0.38);
+  box-shadow: 0 0 0 4px rgba(224, 96, 96, 0.14);
 }
 
 .form-input.full {
@@ -152,31 +173,56 @@
 .phone-row {
   display: flex;
   align-items: stretch;
-  background-color: #2a2a2a;
-  border-radius: 8px;
+  background-color: #232323;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   overflow: hidden;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .phone-row:focus-within {
-  background-color: #333;
-  box-shadow: 0 0 0 2px rgba(224, 96, 96, 0.5);
+  background-color: #2b2b2b;
+  border-color: rgba(226, 78, 73, 0.38);
+  box-shadow: 0 0 0 4px rgba(224, 96, 96, 0.14);
 }
 
 .phone-prefix {
+  appearance: none;
+  background-color: transparent;
+  border: none;
   font-size: 0.88rem;
   color: #aaa;
-  padding: 14px 14px 14px 16px;
+  padding: 14px 36px 14px 16px;
   border-right: 1px solid #444;
   white-space: nowrap;
   display: flex;
   align-items: center;
+  cursor: pointer;
+  outline: none;
+  min-width: 84px;
 }
 
 .phone-input {
   background-color: transparent;
   border-radius: 0;
   flex: 1;
+}
+
+.phone-row {
+  position: relative;
+}
+
+.phone-row::after {
+  content: "";
+  position: absolute;
+  left: 58px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #888;
+  border-bottom: 2px solid #888;
+  transform: translateY(-65%) rotate(45deg);
+  pointer-events: none;
 }
 
 .phone-input:focus {
@@ -192,17 +238,17 @@
 .form-textarea {
   width: 100%;
   min-height: 230px;
-  background-color: #2a2a2a;
-  border: none;
-  border-radius: 8px;
+  background-color: #232323;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
   color: #fff;
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-family: inherit;
   padding: 14px 16px 32px;
   resize: none;
   outline: none;
   box-sizing: border-box;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .form-textarea::placeholder {
@@ -210,8 +256,9 @@
 }
 
 .form-textarea:focus {
-  background-color: #333;
-  box-shadow: 0 0 0 2px rgba(224, 96, 96, 0.5);
+  background-color: #2b2b2b;
+  border-color: rgba(226, 78, 73, 0.38);
+  box-shadow: 0 0 0 4px rgba(224, 96, 96, 0.14);
 }
 
 .char-count {
@@ -225,24 +272,81 @@
 
 /* Submit button */
 .submit-btn {
-  background-color: #E24E49;
+  background: linear-gradient(135deg, #e24e49, #f06a58);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
   font-size: 1rem;
   font-weight: 700;
-  padding: 16px;
+  padding: 16px 18px;
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
-  letter-spacing: 0.3px;
+  transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+  letter-spacing: 0.01em;
+  box-shadow: 0 16px 34px rgba(226, 78, 73, 0.24);
 }
 
 .submit-btn:hover {
-  background-color: #cc4444;
+  transform: translateY(-1px);
+}
+
+.submit-btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  opacity: 0.7;
+  transform: none;
 }
 
 .submit-btn:active {
-  transform: scale(0.99);
+  transform: translateY(0);
+}
+
+.form-status-wrap {
+  min-height: 24px;
+}
+
+.form-status-wrap-visible {
+  animation: formStatusReveal 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.form-status-wrap-sending {
+  animation: formStatusPulse 1s ease-in-out infinite;
+}
+
+.form-status {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  text-align: center;
+  margin: 0;
+}
+
+.form-status-success {
+  color: #9ad9aa;
+}
+
+.form-status-error {
+  color: #ff9a8d;
+}
+
+@keyframes formStatusReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes formStatusPulse {
+  0%, 100% {
+    opacity: 0.55;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
 }
 
 /* Disclaimer */
@@ -267,13 +371,13 @@
 
 /* ── Footer ─────────────────────── */
 .contact-footer {
-  padding: 0 80px 32px;
+  padding: 0 80px 20px;
 }
 
 .footer-divider {
   height: 1px;
   background-color: #2a2a2a;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .footer-text {
@@ -287,7 +391,7 @@
 @media (max-width: 1024px) {
   .contact-wrapper {
     grid-template-columns: 1fr 1fr;
-    padding: 48px 40px;
+    padding: 48px 40px 32px;
   }
 
   .contact-right {
@@ -298,7 +402,7 @@
 @media (max-width: 640px) {
   .contact-wrapper {
     grid-template-columns: 1fr;
-    padding: 40px 24px;
+    padding: 40px 24px 24px;
     gap: 40px;
   }
 
@@ -310,6 +414,10 @@
     grid-template-columns: 1fr;
   }
 
+  .contact-right {
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
   .contact-footer {
     padding: 0 24px 24px;
   }
