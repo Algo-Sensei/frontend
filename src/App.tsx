@@ -6,15 +6,16 @@ import AIChat from "./screens/pages/AIChat";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/landing" replace />} />
-        <Route path="/landing" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/chat" element={<AIChat />} />
-      </Routes>
-    </BrowserRouter>
+    // <BrowserRouter>
+    //   <Routes>
+    //     <Route path="/" element={<Navigate to="/landing" replace />} />
+    //     <Route path="/landing" element={<LandingPage />} />
+    //     <Route path="/login" element={<LoginPage />} />
+    //     <Route path="/signup" element={<SignUpPage />} />
+    //     <Route path="/chat" element={<AIChat />} />
+    //   </Routes>
+    // </BrowserRouter>
+    <AIChat />
   );
 }
 

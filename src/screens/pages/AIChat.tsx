@@ -1,11 +1,36 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, } from "react";
 // @ts-ignore: CSS side-effect import without type declarations
 import "./AIChat.css";
 import Sidebar from "../../components/ui/sidebar";
+import { extractCodeBlocks } from "../../components/chat-page-workspace/codeParser";
+import ALWorkspace from "../../components/chat-page-workspace/ALWorkspace";
 
-type Message = { id: string; role: "user" | "ai"; text: string; time: string; attachment?: Attachment; };
-type OpenAIMessage = { role: "system" | "user" | "assistant"; content: string; };
-type Attachment = { name: string; url: string; type: string; };
+type CodeArtifact = {
+  language: string;
+  filename: string;
+  code: string;
+  output?: string;
+}
+
+type Message = { 
+  id: string; 
+  role: "user" | "ai"; 
+  text: string; 
+  time: string; 
+  attachment?: Attachment;
+  code?: CodeArtifact[];
+};
+
+type OpenAIMessage = { 
+  role: "system" | "user" | "assistant"; 
+  content: string; 
+};
+
+type Attachment = { 
+  name: string; 
+  url: string; 
+  type: string; 
+};
 
 // -----------------
 // API Config
@@ -186,6 +211,9 @@ export default function AIChat() {
   const [canSend, setCanSend] = useState(false);
   const [preview, setPreview] = useState<Attachment | null>(null); // local preview before send
   const [uploading, setUploading] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [activeCode, setActiveCode] = useState<CodeArtifact | null>(null);
+  const [showVisualizer, setShowVisualizer] = useState(false);
   const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -230,6 +258,12 @@ export default function AIChat() {
     historyRef.current = [];
     resetTextarea();
   };
+
+  const openWorkspace = (code: CodeArtifact) => {
+    setActiveCode(code);
+    setWorkspaceOpen(true);
+    setShowVisualizer(false);
+  }
 
   // when user picks a file — show local preview immediately, then upload to backend
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,7 +325,20 @@ export default function AIChat() {
     try {
       const reply = await fetchReply(historyRef.current);
       historyRef.current.push({ role: "assistant", content: reply });
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "ai", text: reply, time: getTime() }]);
+
+      const parsed = extractCodeBlocks(reply);
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "ai",
+          text: parsed.cleanText,
+          time: getTime(),
+          code: parsed.code,
+        }
+      ]);
+      
     } catch (err: any) {
       setError(err.message ?? "Something went wrong.");
     } finally {
@@ -309,6 +356,14 @@ export default function AIChat() {
       <Sidebar onNewChat={handleNewChat} onCollapse={() => {}} />
 
       <div className="ai-root">
+        {workspaceOpen && activeCode && (
+          <ALWorkspace
+            code={activeCode}
+            showVisualizer={showVisualizer}
+            onVisualize={() => setShowVisualizer(true)}
+            onClose={() => setWorkspaceOpen(false)}
+          />
+        )}
         {!hasMessages ? (
           <div className="ai-empty">
             <h1 className="ai-empty-title">Got any algorithm questions?</h1>
@@ -347,6 +402,15 @@ export default function AIChat() {
                     {msg.text && (
                       <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"}>{msg.text}</div>
                     )}
+                    {msg.code?.map((snippet, i) => (
+                      <button
+                        key={i}
+                        className="ai-code-pill"
+                        onClick={() => open}
+                      >
+                        {snippet.filename}
+                      </button>
+                    ))}
                     <span className="ai-time">{msg.time}</span>
                   </div>
                 </div>
