@@ -1,9 +1,17 @@
 import React, { useState, useRef, useEffect, } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 // @ts-ignore: CSS side-effect import without type declarations
 import "./AIChat.css";
 import Sidebar from "../../components/ui/sidebar";
 import { extractCodeBlocks } from "../../components/chat-page-workspace/codeParser";
 import ALWorkspace from "../../components/chat-page-workspace/ALWorkspace";
+import {
+  fetchCurrentUser,
+  fetchReply as fetchChatReply,
+  uploadFile as uploadChatFile,
+  type OpenAIMessage,
+  type UserProfile,
+} from "../../api";
 
 type CodeArtifact = {
   language: string;
@@ -21,11 +29,6 @@ type Message = {
   code?: CodeArtifact[];
 };
 
-type OpenAIMessage = { 
-  role: "system" | "user" | "assistant"; 
-  content: string; 
-};
-
 type Attachment = { 
   name: string; 
   url: string; 
@@ -36,13 +39,7 @@ type Attachment = {
 // API Config
 // -----------------
 const OPENAI_API_KEY = "sk-..."; // OpenAI API Key here
-const OPENAI_API_URL = process.env.REACT_APP_API_URL + "/api/chat"; // backend endpoint
 const MODEL = "gpt-4o"; // model you want to use
-
-// TODO: replace with your actual file upload endpoint
-// POST /api/upload — should accept multipart/form-data with a "file" field
-// should return: { url: string } — the URL of the uploaded file
-const UPLOAD_URL = process.env.REACT_APP_API_URL + "/api/upload";
 
 const SYSTEM_PROMPT = `You are AlgoSensei, an expert algorithm and data structures tutor.
 You explain concepts clearly, analyze time/space complexity, and help with coding problems.
@@ -50,55 +47,6 @@ Keep responses concise but thorough. Use plain text — no markdown formatting.`
 
 function getTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-// -----------------
-// === API CALL ===
-// -----------------
-async function fetchReply(history: OpenAIMessage[]): Promise<string> {
-  // placeholder — remove this line once backend is ready:
-  // return "This is where the API response will appear.";
-
-  const response = await fetch(OPENAI_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...history],
-      max_tokens: 512,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message || `API error ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() ?? "No response received.";
-}
-
-// -----------------
-// === FILE UPLOAD ===
-// -----------------
-// TODO: wire this to your actual backend upload endpoint above
-async function uploadFile(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await fetch(UPLOAD_URL, {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
-
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-  const data = await res.json();
-  return data.url; // backend should return { url: "..." }
 }
 
 function IconClip() {
@@ -139,6 +87,8 @@ const InputBox = ({
   isTyping,
   preview,
   uploading,
+  canAttachFiles,
+  onRequireLogin,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -150,6 +100,8 @@ const InputBox = ({
   isTyping: boolean;
   preview: Attachment | null;
   uploading: boolean;
+  canAttachFiles: boolean;
+  onRequireLogin: () => void;
 }) => (
   <div className="ai-input-card">
     {/* file preview strip */}
@@ -193,18 +145,28 @@ const InputBox = ({
         onChange={onFileChange}
       />
       <button
-        className="ai-clip-btn"
-        onClick={() => fileInputRef.current?.click()}
+        className={`ai-clip-btn${!canAttachFiles ? " disabled" : ""}`}
+        onClick={() => {
+          if (!canAttachFiles) {
+            onRequireLogin();
+            return;
+          }
+          fileInputRef.current?.click();
+        }}
         disabled={uploading}
       >
         <IconClip />
-        <span>{uploading ? "Uploading..." : "Attach file"}</span>
+        <span>
+          {!canAttachFiles ? "Sign in to attach files" : uploading ? "Uploading..." : "Attach file"}
+        </span>
       </button>
     </div>
   </div>
 );
 
 export default function AIChat() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -214,11 +176,22 @@ export default function AIChat() {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [activeCode, setActiveCode] = useState<CodeArtifact | null>(null);
   const [showVisualizer, setShowVisualizer] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
   const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasMessages = messages.length > 0;
+  const isGuest = !user;
+  const transitionState = location.state as { fromHero?: boolean } | null;
+  const enteredFromHero = Boolean(transitionState?.fromHero);
+
+  useEffect(() => {
+    fetchCurrentUser()
+      .then(setUser)
+      .catch(() => setUser(null));
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -267,6 +240,11 @@ export default function AIChat() {
 
   // when user picks a file — show local preview immediately, then upload to backend
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isGuest) {
+      setShowGuestAttachmentModal(true);
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -279,7 +257,7 @@ export default function AIChat() {
     // TODO: remove the try/catch stub once UPLOAD_URL is wired up
     setUploading(true);
     try {
-      const remoteUrl = await uploadFile(file);
+      const remoteUrl = await uploadChatFile(file);
       // swap local blob URL for the real backend URL
       setPreview({ name: file.name, url: remoteUrl, type: file.type });
     } catch {
@@ -323,7 +301,11 @@ export default function AIChat() {
     historyRef.current.push({ role: "user", content: userContent });
 
     try {
-      const reply = await fetchReply(historyRef.current);
+      const reply = await fetchChatReply(historyRef.current, {
+        apiKey: OPENAI_API_KEY,
+        model: MODEL,
+        systemPrompt: SYSTEM_PROMPT,
+      });
       historyRef.current.push({ role: "assistant", content: reply });
 
       const parsed = extractCodeBlocks(reply);
@@ -364,6 +346,30 @@ export default function AIChat() {
             onClose={() => setWorkspaceOpen(false)}
           />
         )}
+      </div>
+    <div
+      className={`ai-page-shell${enteredFromHero ? " ai-page-shell-enter" : ""}`}
+      style={
+        {
+          position: "relative",
+          height: "100vh",
+          width: "100vw",
+          overflow: "hidden",
+          background: "#242424",
+        } as React.CSSProperties
+      }
+    >
+      {!isGuest && <Sidebar onNewChat={handleNewChat} onCollapse={() => {}} />}
+
+      {isGuest && (
+        <div className="ai-guest-topbar">
+          <button className="ai-guest-signin-btn" onClick={() => navigate("/login")}>
+            Sign in
+          </button>
+        </div>
+      )}
+
+      <div className={`ai-root${isGuest ? " ai-root-guest" : ""}${enteredFromHero ? " ai-root-enter" : ""}`}>
         {!hasMessages ? (
           <div className="ai-empty">
             <h1 className="ai-empty-title">Got any algorithm questions?</h1>
@@ -379,6 +385,8 @@ export default function AIChat() {
                 isTyping={isTyping}
                 preview={preview}
                 uploading={uploading}
+                canAttachFiles={!isGuest}
+                onRequireLogin={() => setShowGuestAttachmentModal(true)}
               />
             </div>
             {error && <p className="ai-error-text">{error}</p>}
@@ -406,7 +414,7 @@ export default function AIChat() {
                       <button
                         key={i}
                         className="ai-code-pill"
-                        onClick={() => open}
+                        onClick={() => openWorkspace(snippet)}
                       >
                         {snippet.filename}
                       </button>
@@ -446,12 +454,32 @@ export default function AIChat() {
                   isTyping={isTyping}
                   preview={preview}
                   uploading={uploading}
+                  canAttachFiles={!isGuest}
+                  onRequireLogin={() => setShowGuestAttachmentModal(true)}
                 />
               </div>
             </div>
           </>
         )}
       </div>
+
+      {showGuestAttachmentModal && (
+        <div className="ai-modal-overlay" onClick={() => setShowGuestAttachmentModal(false)}>
+          <div className="ai-modal-card" onClick={(e) => e.stopPropagation()}>
+            <h2 className="ai-modal-title">Guest mode restriction</h2>
+            <p className="ai-modal-text">File attachments are only available after you sign in.</p>
+            <div className="ai-modal-actions">
+              <button className="ai-modal-btn ai-modal-btn-secondary" onClick={() => setShowGuestAttachmentModal(false)}>
+                Close
+              </button>
+              <button className="ai-modal-btn ai-modal-btn-primary" onClick={() => navigate("/login")}>
+                Sign in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
     </div>
   );
 }

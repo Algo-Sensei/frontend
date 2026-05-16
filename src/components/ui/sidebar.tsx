@@ -1,32 +1,15 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import "./sidebar.css";
+import {
+  clearChatHistory,
+  fetchChatHistory,
+  fetchCurrentUser,
+  logoutUser,
+  type ChatHistoryItem,
+  type UserProfile,
+} from "../../api";
 
-// -----------------
-// API Config
-// -----------------
-const BACKEND_URL = process.env.REACT_APP_API_URL;
-
-// TODO: replace with your actual endpoint to fetch chat history
-// GET /api/chat/history — should return: { id: string, title: string, date: string }[]
-async function fetchChatHistory(): Promise<ChatHistoryItem[]> {
-  const res = await fetch(`${BACKEND_URL}/api/chat/history`, { credentials: "include" });
-  if (!res.ok) throw new Error("Failed to fetch history");
-  return res.json();
-}
-
-// TODO: replace with your actual endpoint to delete/clear all chat history
-// DELETE /api/chat/history
-async function clearChatHistory(): Promise<void> {
-  await fetch(`${BACKEND_URL}/api/chat/history`, { method: "DELETE", credentials: "include" });
-}
-
-// TODO: replace with your actual logout endpoint
-// POST /api/auth/logout
-async function logoutUser(): Promise<void> {
-  await fetch(`${BACKEND_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
-}
-
-type ChatHistoryItem = { id: string; title: string; date: string; };
 type ActiveItem = "newchat" | "history" | "faq" | "settings" | null;
 
 function IconNewChat() {
@@ -86,6 +69,25 @@ function IconExpand() {
   );
 }
 
+function ProviderIcon({ provider }: { provider?: string }) {
+  if (provider?.toUpperCase() === "GITHUB") {
+    return (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.1.82-.26.82-.58 0-.28-.01-1.04-.02-2.03-3.34.73-4.04-1.42-4.04-1.42-.55-1.38-1.33-1.75-1.33-1.75-1.1-.75.08-.74.08-.74 1.2.09 1.84 1.24 1.84 1.24 1.08 1.84 2.82 1.31 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.55.12-3.23 0 0 1.01-.32 3.3 1.23A11.5 11.5 0 0 1 12 5.8c1.02 0 2.05.14 3.01.41 2.28-1.55 3.29-1.23 3.29-1.23.66 1.68.24 2.93.12 3.23.77.84 1.24 1.91 1.24 3.22 0 4.62-2.8 5.64-5.48 5.94.43.38.82 1.12.82 2.26 0 1.63-.02 2.95-.02 3.35 0 .32.22.69.83.57A12 12 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#EA4335" d="M12 5c1.7 0 3.23.59 4.43 1.74l3.3-3.3C17.7 1.5 15.08.5 12 .5 7.31.5 3.26 3.2 1.28 7.14l3.84 2.98C6.02 7.07 8.79 5 12 5z" />
+      <path fill="#4285F4" d="M23.5 12.27c0-.79-.08-1.55-.19-2.27H12v4.5h6.6c-.3 1.48-1.15 2.73-2.43 3.58l3.73 2.9c2.18-2.01 3.42-4.99 3.42-8.71z" />
+      <path fill="#FBBC05" d="M5.12 14.38A6.97 6.97 0 0 1 4.75 12c0-.82.14-1.61.37-2.38L1.28 6.64A11.5 11.5 0 0 0 .5 12c0 1.84.44 3.57 1.22 5.14l3.4-2.76z" />
+      <path fill="#34A853" d="M12 23.5c3.08 0 5.67-1.01 7.56-2.74l-3.73-2.9c-1.03.7-2.35 1.09-3.83 1.09-3.21 0-5.98-2.07-6.88-5.12l-3.4 2.76C3.26 20.8 7.31 23.5 12 23.5z" />
+    </svg>
+  );
+}
+
 const faqs = [
   { q: "What is AlgoSensei?", a: "AlgoSensei is an AI tutor specialized in algorithms and data structures." },
   { q: "How do I ask a question?", a: "Type your question in the chat box and press Enter or click send." },
@@ -100,6 +102,7 @@ export default function Sidebar({
   onNewChat: () => void;
   onCollapse: (collapsed: boolean) => void;
 }) {
+  const navigate = useNavigate();
   // starts collapsed so sidebar is closed on login
   const [collapsed, setCollapsed] = useState(true);
   const [active, setActive] = useState<ActiveItem>(null);
@@ -107,10 +110,17 @@ export default function Sidebar({
   const [history, setHistory] = useState<ChatHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   // notify AIChat of initial collapsed state on mount
   useEffect(() => {
     onCollapse(true);
+  }, []);
+
+  useEffect(() => {
+    fetchCurrentUser()
+      .then(setUser)
+      .catch(() => setUser(null));
   }, []);
 
   useEffect(() => {
@@ -151,6 +161,12 @@ export default function Sidebar({
   };
 
   const groups = ["Today", "Yesterday", "This week"];
+  const userInitials = user?.name
+    ?.split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join("") || "AS";
 
   return (
     <div className={`sb-root${collapsed ? " sb-collapsed" : ""}`}>
@@ -175,38 +191,70 @@ export default function Sidebar({
               <span>New chat</span>
             </button>
 
-            <div className="sb-sep" />
+            {user && (
+              <>
+                <div className="sb-sep" />
 
-            <button className={`sb-item${active === "history" ? " active" : ""}`} onClick={() => toggle("history")}>
-              <IconHistory />
-              <span>Chat History</span>
-            </button>
+                <button className={`sb-item${active === "history" ? " active" : ""}`} onClick={() => toggle("history")}>
+                  <IconHistory />
+                  <span>Chat History</span>
+                </button>
 
-            {active === "history" && (
-              <div className="sb-sublist">
-                {historyLoading && <p className="sb-status">Loading...</p>}
-                {historyError && <p className="sb-status sb-error">{historyError}</p>}
-                {!historyLoading && !historyError && history.length === 0 && (
-                  <p className="sb-status">No history yet.</p>
+                {active === "history" && (
+                  <div className="sb-sublist">
+                    {historyLoading && <p className="sb-status">Loading...</p>}
+                    {historyError && <p className="sb-status sb-error">{historyError}</p>}
+                    {!historyLoading && !historyError && history.length === 0 && (
+                      <p className="sb-status">No history yet.</p>
+                    )}
+                    {!historyLoading && !historyError && groups.map(group => {
+                      const items = history.filter(c => c.date === group);
+                      if (!items.length) return null;
+                      return (
+                        <div key={group}>
+                          <span className="sb-group-label">{group}</span>
+                          {items.map(chat => (
+                            <button key={chat.id} className="sb-history-item">{chat.title}</button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
-                {!historyLoading && !historyError && groups.map(group => {
-                  const items = history.filter(c => c.date === group);
-                  if (!items.length) return null;
-                  return (
-                    <div key={group}>
-                      <span className="sb-group-label">{group}</span>
-                      {items.map(chat => (
-                        <button key={chat.id} className="sb-history-item">{chat.title}</button>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
+              </>
             )}
           </div>
 
           <div className="sb-bottom">
             <div className="sb-sep" />
+
+            {!user && (
+              <div className="sb-guest-card">
+                <p className="sb-guest-title">Guest mode</p>
+                <p className="sb-guest-text">Sign in to unlock visualization and file attachments.</p>
+                <button className="sb-login-btn" onClick={() => navigate("/login")}>Sign in</button>
+              </div>
+            )}
+
+            {user && (
+              <div className="sb-profile-card">
+                {user.profilePicture ? (
+                  <img className="sb-profile-avatar" src={user.profilePicture} alt={user.name} />
+                ) : (
+                  <div className="sb-profile-avatar sb-profile-fallback">{userInitials}</div>
+                )}
+                <div className="sb-profile-meta">
+                  <p className="sb-profile-name">{user.name}</p>
+                  <p className="sb-profile-email">{user.email}</p>
+                  {user.loginProvider?.toUpperCase() === "GITHUB" && (
+                    <p className="sb-profile-provider">
+                      <ProviderIcon provider={user.loginProvider} />
+                      <span>{user.loginProvider}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <button className={`sb-item${active === "faq" ? " active" : ""}`} onClick={() => toggle("faq")}>
               <span>FAQ</span>
@@ -227,24 +275,23 @@ export default function Sidebar({
               </div>
             )}
 
-            <button className={`sb-item${active === "settings" ? " active" : ""}`} onClick={() => toggle("settings")}>
-              <span>Settings</span>
-              <IconSettings />
-            </button>
+            {user && (
+              <>
+                <button className={`sb-item${active === "settings" ? " active" : ""}`} onClick={() => toggle("settings")}>
+                  <span>Settings</span>
+                  <IconSettings />
+                </button>
 
-            {active === "settings" && (
-              <div className="sb-sublist">
-                <div className="sb-setting-row"><span>Theme</span><span className="sb-setting-val">Dark</span></div>
-                <div className="sb-setting-row"><span>Model</span><span className="sb-setting-val">GPT-4o</span></div>
-                <div className="sb-setting-row">
-                  <span>Clear history</span>
-                  <button className="sb-danger-btn" onClick={handleClear}>Clear</button>
-                </div>
-                <div className="sb-setting-row">
-                  <span>Logout</span>
-                  <button className="sb-danger-btn" onClick={handleLogout}>Logout</button>
-                </div>
-              </div>
+                {active === "settings" && (
+                  <div className="sb-sublist">
+                    <div className="sb-setting-row"><span>Model</span><span className="sb-setting-val">GPT-4o</span></div>
+                    <div className="sb-setting-row">
+                      <span>Logout</span>
+                      <button className="sb-danger-btn" onClick={handleLogout}>Logout</button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>
@@ -253,12 +300,18 @@ export default function Sidebar({
       {collapsed && (
         <div className="sb-icon-rail">
           <button className="sb-icon-btn" title="New Chat" onClick={onNewChat}><IconNewChat /></button>
-          <div className="sb-sep-sm" />
-          <button className="sb-icon-btn" title="Chat History" onClick={handleToggleCollapse}><IconHistory /></button>
+          {user && (
+            <>
+              <div className="sb-sep-sm" />
+              <button className="sb-icon-btn" title="Chat History" onClick={handleToggleCollapse}><IconHistory /></button>
+            </>
+          )}
           <div className="sb-spacer" />
           <div className="sb-sep-sm" />
           <button className="sb-icon-btn" title="FAQ" onClick={handleToggleCollapse}><IconFAQ /></button>
-          <button className="sb-icon-btn" title="Settings" onClick={handleToggleCollapse}><IconSettings /></button>
+          {user && (
+            <button className="sb-icon-btn" title="Settings" onClick={handleToggleCollapse}><IconSettings /></button>
+          )}
         </div>
       )}
     </div>
