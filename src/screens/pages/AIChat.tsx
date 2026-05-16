@@ -159,6 +159,9 @@ const InputBox = ({
         <span>
           {!canAttachFiles ? "Sign in to attach files" : uploading ? "Uploading..." : "Attach file"}
         </span>
+        <span>
+          {!canAttachFiles ? "Sign in to attach files" : uploading ? "Uploading..." : "Attach file"}
+        </span>
       </button>
     </div>
   </div>
@@ -186,6 +189,12 @@ export default function AIChat() {
   const isGuest = !user;
   const transitionState = location.state as { fromHero?: boolean } | null;
   const enteredFromHero = Boolean(transitionState?.fromHero);
+
+  useEffect(() => {
+    fetchCurrentUser()
+      .then(setUser)
+      .catch(() => setUser(null));
+  }, []);
 
   useEffect(() => {
     fetchCurrentUser()
@@ -240,6 +249,11 @@ export default function AIChat() {
 
   // when user picks a file — show local preview immediately, then upload to backend
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isGuest) {
+      setShowGuestAttachmentModal(true);
+      return;
+    }
+
     if (isGuest) {
       setShowGuestAttachmentModal(true);
       return;
@@ -483,3 +497,4 @@ export default function AIChat() {
     </div>
   );
 }
+
