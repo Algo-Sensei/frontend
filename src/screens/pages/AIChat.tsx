@@ -89,8 +89,6 @@ const InputBox = ({
   uploading,
   canAttachFiles,
   onRequireLogin,
-  canAttachFiles,
-  onRequireLogin,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -102,8 +100,6 @@ const InputBox = ({
   isTyping: boolean;
   preview: Attachment | null;
   uploading: boolean;
-  canAttachFiles: boolean;
-  onRequireLogin: () => void;
   canAttachFiles: boolean;
   onRequireLogin: () => void;
 }) => (
@@ -157,14 +153,6 @@ const InputBox = ({
           }
           fileInputRef.current?.click();
         }}
-        className={`ai-clip-btn${!canAttachFiles ? " disabled" : ""}`}
-        onClick={() => {
-          if (!canAttachFiles) {
-            onRequireLogin();
-            return;
-          }
-          fileInputRef.current?.click();
-        }}
         disabled={uploading}
       >
         <IconClip />
@@ -180,8 +168,6 @@ const InputBox = ({
 );
 
 export default function AIChat() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const navigate = useNavigate();
   const location = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -286,7 +272,6 @@ export default function AIChat() {
     setUploading(true);
     try {
       const remoteUrl = await uploadChatFile(file);
-      const remoteUrl = await uploadChatFile(file);
       // swap local blob URL for the real backend URL
       setPreview({ name: file.name, url: remoteUrl, type: file.type });
     } catch {
@@ -330,11 +315,6 @@ export default function AIChat() {
     historyRef.current.push({ role: "user", content: userContent });
 
     try {
-      const reply = await fetchChatReply(historyRef.current, {
-        apiKey: OPENAI_API_KEY,
-        model: MODEL,
-        systemPrompt: SYSTEM_PROMPT,
-      });
       const reply = await fetchChatReply(historyRef.current, {
         apiKey: OPENAI_API_KEY,
         model: MODEL,
@@ -421,8 +401,6 @@ export default function AIChat() {
                 uploading={uploading}
                 canAttachFiles={!isGuest}
                 onRequireLogin={() => setShowGuestAttachmentModal(true)}
-                canAttachFiles={!isGuest}
-                onRequireLogin={() => setShowGuestAttachmentModal(true)}
               />
             </div>
             {error && <p className="ai-error-text">{error}</p>}
@@ -490,8 +468,6 @@ export default function AIChat() {
                   isTyping={isTyping}
                   preview={preview}
                   uploading={uploading}
-                  canAttachFiles={!isGuest}
-                  onRequireLogin={() => setShowGuestAttachmentModal(true)}
                   canAttachFiles={!isGuest}
                   onRequireLogin={() => setShowGuestAttachmentModal(true)}
                 />
