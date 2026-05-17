@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { getOAuthAuthorizationUrl, loginWithEmail } from "../../api";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { fetchLoginSession, getOAuthAuthorizationUrl, loginWithEmail } from "../../api";
 
 const GoogleIcon = () => (
   <svg width="22" height="22" viewBox="0 0 48 48">
@@ -25,6 +25,7 @@ const ChevronLeft = () => (
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [leaving, setLeaving] = useState(false);
@@ -32,6 +33,43 @@ const LoginPage = () => {
   const [oauthLoading, setOauthLoading] = useState<"google" | "github" | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  useEffect(() => {
+    const oauthError = searchParams.get("error") || searchParams.get("oauthError");
+    const loginStatus = searchParams.get("login");
+    const loggedOut = searchParams.get("logged_out");
+
+    if (oauthError) {
+      setOauthLoading(null);
+      setLoginError(decodeURIComponent(oauthError).replace(/\+/g, " "));
+      return;
+    }
+
+    if (loginStatus === "error") {
+      setOauthLoading(null);
+      setLoginError("OAuth login failed. Please try again.");
+      return;
+    }
+
+    if (loggedOut === "1") {
+      setOauthLoading(null);
+      setLoginError(null);
+      return;
+    }
+
+    const restoreSession = async () => {
+      try {
+        const isLoggedIn = await fetchLoginSession();
+        if (isLoggedIn) {
+          navigate("/chat", { replace: true });
+        }
+      } catch {
+        // Stay on the login screen if the backend cannot be reached.
+      }
+    };
+
+    void restoreSession();
+  }, [navigate, searchParams]);
 
   const handleNavigate = (path: string) => {
     setLeaving(true);
@@ -42,7 +80,18 @@ const LoginPage = () => {
   // and redirects back to /chat on success
   const handleOAuthLogin = (provider: "google" | "github") => {
     setOauthLoading(provider);
-    window.location.href = getOAuthAuthorizationUrl(provider);
+    const oauthUrl = getOAuthAuthorizationUrl(provider);
+
+    try {
+      if (window.top && window.top !== window.self) {
+        window.top.location.assign(oauthUrl);
+        return;
+      }
+    } catch {
+      // If cross-origin frame access is blocked, fall back to same-window navigation.
+    }
+
+    window.location.assign(oauthUrl);
   };
 
   // Email/password login via backend

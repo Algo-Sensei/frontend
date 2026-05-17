@@ -58,6 +58,9 @@ export const divider: React.CSSProperties = {
 };
 
 export const loginLink = (hovered: boolean): React.CSSProperties => ({
+  background: "none",
+  border: "none",
+  cursor: "pointer",
   textDecoration: "none",
   fontSize: "0.9rem",
   fontFamily: "'Inter', sans-serif",
@@ -65,6 +68,8 @@ export const loginLink = (hovered: boolean): React.CSSProperties => ({
   color: hovered ? "#D9D9D9" : "white",
   position: "relative",
   paddingBottom: "2px",
+  paddingLeft: 0,
+  paddingRight: 0,
 });
 
 export const linkStyle = (

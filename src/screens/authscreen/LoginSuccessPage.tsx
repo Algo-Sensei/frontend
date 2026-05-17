@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { fetchLoginSession } from "../../api";
+import { fetchCurrentUser, fetchLoginSession } from "../../api";
 
 export default function LoginSuccessPage() {
   const navigate = useNavigate();
@@ -10,7 +10,12 @@ export default function LoginSuccessPage() {
     const loginStatus = searchParams.get("login");
 
     if (loginStatus === "success") {
-      navigate("/chat", { replace: true });
+      const resumeSession = async () => {
+        const user = await fetchCurrentUser().catch(() => null);
+        navigate(user ? "/chat" : "/login", { replace: true });
+      };
+
+      void resumeSession();
       return;
     }
 

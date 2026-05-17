@@ -81,6 +81,7 @@ const InputBox = ({
   textareaRef,
   fileInputRef,
   onKeyDown,
+  onInput,
   onSend,
   onFileChange,
   onRemovePreview,
@@ -95,6 +96,7 @@ const InputBox = ({
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onInput: (e: React.FormEvent<HTMLTextAreaElement>) => void;
   onSend: () => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemovePreview: () => void;
@@ -123,7 +125,8 @@ const InputBox = ({
       <textarea
         ref={textareaRef}
         onKeyDown={onKeyDown}
-        placeholder="Send a message"
+        onInput={onInput}
+        placeholder="Ask me about algorithms, data structures, complexity..."
         rows={1}
         maxLength={500}
         className="ai-textarea"
@@ -194,36 +197,70 @@ export default function AIChat() {
   const [showVisualizer, setShowVisualizer] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
   const hasMessages = messages.length > 0;
-  const isGuest = !user;
+  const allowsGuestMode = new URLSearchParams(location.search).get("mode") === "guest";
+  const isGuest = authChecked && !user;
   const transitionState = location.state as { fromHero?: boolean } | null;
   const enteredFromHero = Boolean(transitionState?.fromHero);
 
   useEffect(() => {
-    fetchCurrentUser()
-      .then(setUser)
-      .catch(() => setUser(null));
-  }, []);
+    let cancelled = false;
+
+    const resolveAuth = async () => {
+      try {
+        const currentUser = await fetchCurrentUser();
+        if (cancelled) return;
+
+        if (currentUser) {
+          setUser(currentUser);
+          setAuthChecked(true);
+          return;
+        }
+
+        if (allowsGuestMode) {
+          setUser(null);
+          setAuthChecked(true);
+          return;
+        }
+
+        navigate("/login", { replace: true });
+      } catch {
+        if (cancelled) return;
+
+        if (allowsGuestMode) {
+          setUser(null);
+          setAuthChecked(true);
+          return;
+        }
+
+        navigate("/login", { replace: true });
+      }
+    };
+
+    void resolveAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allowsGuestMode, navigate]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
 
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
-    const handleInput = () => {
-      el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, 200) + "px";
-      el.style.overflowY = el.scrollHeight > 200 ? "auto" : "hidden";
-      setCanSend(el.value.trim().length > 0 || preview !== null);
-    };
-    el.addEventListener("input", handleInput);
-    return () => el.removeEventListener("input", handleInput);
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+    el.style.overflowY = el.scrollHeight > 200 ? "auto" : "hidden";
+    setCanSend(el.value.trim().length > 0 || preview !== null);
   }, [hasMessages, preview]);
 
   // allow send if there's a file attached even with no text
@@ -306,6 +343,10 @@ export default function AIChat() {
       attachment: preview ?? undefined,
     }]);
 
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+
     const userContent = trimmed + (preview ? `\n[File attached: ${preview.name}]` : "");
     resetTextarea();
     setPreview(null);
@@ -362,6 +403,40 @@ export default function AIChat() {
       setIsTyping(false);
     }, 1000);
   };
+
+  const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const el = e.currentTarget;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+    el.style.overflowY = el.scrollHeight > 200 ? "auto" : "hidden";
+    setCanSend(el.value.trim().length > 0 || preview !== null);
+  };
+
+  if (!authChecked) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#242424",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            border: "3px solid #444",
+            borderTop: "3px solid #E24E40",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -426,6 +501,7 @@ export default function AIChat() {
                 textareaRef={textareaRef}
                 fileInputRef={fileInputRef}
                 onKeyDown={handleKeyDown}
+                onInput={handleTextareaInput}
                 onSend={send}
                 onFileChange={handleFileChange}
                 onRemovePreview={handleRemovePreview}

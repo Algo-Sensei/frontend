@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { fetchLoginSession } from "../../api";
 
 import {
   wrapperStyle,
@@ -31,15 +32,32 @@ const scrollToSection = (id: string) => {
 
 // ── Navbar ───────────────────────────────────────────────────────────────────
 const Navbar = () => {
+  const navigate = useNavigate();
   const { pathname } = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [loginHovered, setLoginHovered] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [loginChecking, setLoginChecking] = useState(false);
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleLoginClick = async () => {
+    if (loginChecking) return;
+
+    setLoginChecking(true);
+    try {
+      const isLoggedIn = await fetchLoginSession();
+      navigate(isLoggedIn ? "/chat" : "/login");
+    } catch {
+      navigate("/login");
+    } finally {
+      setLoginChecking(false);
+    }
+  };
 
   const links = [
     { label: "Home",        section: "home" },
@@ -90,15 +108,16 @@ const Navbar = () => {
 
             <span style={divider}>|</span>
 
-            <Link
-              to="/login"
+            <button
+              type="button"
+              onClick={handleLoginClick}
               onMouseEnter={() => setLoginHovered(true)}
               onMouseLeave={() => setLoginHovered(false)}
               style={loginLink(loginHovered)}
             >
-              Login
+              {loginChecking ? "Loading..." : "Login"}
               <span style={underlineStyle(loginHovered, pathname === "/login")} />
-            </Link>
+            </button>
           </div>
         </nav>
       </div>

@@ -13,6 +13,7 @@ function App() {
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/login-success" element={<LoginSuccessPage />} />
+        <Route path="/oauth-callback" element={<LoginSuccessPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/chat" element={<AIChat />} />
       </Routes>
