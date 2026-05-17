@@ -11,7 +11,7 @@ const Hero = () => {
     if (isLaunching) return;
     setIsLaunching(true);
     window.setTimeout(() => {
-      navigate("/chat", { state: { fromHero: true } });
+      navigate("/chat?mode=guest", { state: { fromHero: true } });
     }, 560);
   };
 

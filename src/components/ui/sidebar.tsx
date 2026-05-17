@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import "./sidebar.css";
 import {
@@ -111,6 +112,8 @@ export default function Sidebar({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // notify AIChat of initial collapsed state on mount
   useEffect(() => {
@@ -153,10 +156,11 @@ export default function Sidebar({
   };
 
   const handleLogout = async () => {
+    setLoggingOut(true);
     try {
       await logoutUser();
     } finally {
-      window.location.href = "/login";
+      window.location.href = "/login?logged_out=1";
     }
   };
 
@@ -167,6 +171,38 @@ export default function Sidebar({
     .slice(0, 2)
     .map(part => part[0]?.toUpperCase())
     .join("") || "AS";
+  const logoutModal = showLogoutConfirm ? createPortal(
+    <div
+      className="sb-modal-overlay"
+      onClick={() => {
+        if (!loggingOut) {
+          setShowLogoutConfirm(false);
+        }
+      }}
+    >
+      <div className="sb-modal-card" onClick={(e) => e.stopPropagation()}>
+        <h2 className="sb-modal-title">Log out?</h2>
+        <p className="sb-modal-text">You’ll need to sign in again to continue your saved chats and account features.</p>
+        <div className="sb-modal-actions">
+          <button
+            className="sb-modal-btn sb-modal-btn-secondary"
+            onClick={() => setShowLogoutConfirm(false)}
+            disabled={loggingOut}
+          >
+            Cancel
+          </button>
+          <button
+            className="sb-modal-btn sb-modal-btn-primary"
+            onClick={handleLogout}
+            disabled={loggingOut}
+          >
+            {loggingOut ? "Logging out..." : "Logout"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
 
   return (
     <div className={`sb-root${collapsed ? " sb-collapsed" : ""}`}>
@@ -287,7 +323,7 @@ export default function Sidebar({
                     <div className="sb-setting-row"><span>Model</span><span className="sb-setting-val">GPT-4o</span></div>
                     <div className="sb-setting-row">
                       <span>Logout</span>
-                      <button className="sb-danger-btn" onClick={handleLogout}>Logout</button>
+                      <button className="sb-danger-btn" onClick={() => setShowLogoutConfirm(true)}>Logout</button>
                     </div>
                   </div>
                 )}
@@ -314,6 +350,7 @@ export default function Sidebar({
           )}
         </div>
       )}
+      {logoutModal}
     </div>
   );
 }
