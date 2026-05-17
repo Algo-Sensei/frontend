@@ -32,6 +32,26 @@
   z-index: 120;
 }
 
+.ai-guest-back-btn {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  z-index: 120;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.ai-guest-back-btn:hover {
+  background: #333;
+}
+
 .ai-guest-signin-btn {
   border: none;
   border-radius: 999px;
@@ -463,6 +483,11 @@ button { font-family: inherit; }
   .ai-guest-topbar {
     top: 16px;
     right: 16px;
+  }
+
+  .ai-guest-back-btn {
+    top: 16px;
+    left: 16px;
   }
 
   .ai-bottom-bar {
