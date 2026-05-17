@@ -620,6 +620,7 @@ export default function AIChat() {
                 textareaRef={textareaRef}
                 fileInputRef={fileInputRef}
                 onKeyDown={handleKeyDown}
+                onInput={handleTextareaInput}
                 onSend={send}
                 onFileChange={handleFileChange}
                 onRemovePreview={handleRemovePreview}
