@@ -79,165 +79,119 @@ const traceProgram = (code: string): ExecutionFrame[] => {
     while (i < lines.length) {
         const line = lines[i];
 
+        // Skip non-executable structure lines
+        if (line.startsWith("public class") || 
+            line.startsWith("public static") || 
+            line.startsWith("}") || 
+            line.startsWith("//") ||
+            line.startsWith("import")) {
+            i++;
+            continue;
+        }
+
         // ARRAY DECLARATION
-
         const arrayMatch = line.match(/^int\[\]\s+(\w+)\s*=\s*(\{.*\});$/);
-
         if (arrayMatch) {
             const [, name, values] = arrayMatch;
-
             const parsed = parseArrayLiteral(`${values}`);
-
             state.variables[name] = parsed;
             state.heap.arrays[name] = parsed;
-
-            createFrame(
-                frames,
-                state,
-                i + 1,
-                `Array "${name}" created`
-            );
-
+            createFrame(frames, state, i + 1, `Array "${name}" created`);
             i++;
             continue;
-        };
+        }
 
         // INTEGER VARIABLE
-
         const inMatch = line.match(/^int\s+(\w+)\s*=\s*(\d+);$/);
-
         if (inMatch) {
             const [, name, value] = inMatch;
-
             state.variables[name] = Number(value);
-
-            createFrame(
-                frames,
-                state,
-                i + 1,
-                `Variable "${name}" set to ${value}`
-            );
-
+            createFrame(frames, state, i + 1, `Variable "${name}" set to ${value}`);
             i++;
             continue;
-        };
+        }
 
         // STACK DECLARATION
-
         const stackMatch = line.match(/^Stack<(\w+)>\s+(\w+)\s*=\s*new\s+Stack<\w+>\(\);$/);
-
         if (stackMatch) {
-            const [, name] = stackMatch;
-
+            const [, , name] = stackMatch;
             state.heap.stacks[name] = [];
             state.variables[name] = [];
-
-            createFrame(
-                frames,
-                state,
-                i + 1,
-                `Stack "${name}" created`
-            )
-
+            createFrame(frames, state, i + 1, `Stack "${name}" created`);
             i++;
             continue;
-        };
+        }
 
         // STACK PUSH
-
         const pushMatch = line.match(/^(\w+)\.push\((\w+)\);$/);
-
         if (pushMatch) {
             const [, stackName, value] = pushMatch;
-
-            const parsed = Number(value);
-
-            state.heap.stacks[stackName].push(parsed);
-            state.variables[stackName] = state.heap.stacks[stackName];
-
-            createFrame(
-                frames,
-                state,
-                i + 1,
-                `Pushed ${parsed} into ${stackName}`
-            );
-
+            const val = state.variables[value] !== undefined ? state.variables[value] : Number(value);
+            if (state.heap.stacks[stackName]) {
+                state.heap.stacks[stackName].push(val);
+                state.variables[stackName] = state.heap.stacks[stackName];
+                createFrame(frames, state, i + 1, `Pushed ${val} into ${stackName}`);
+            }
             i++;
             continue;
         }
 
         // STACK POP
-
         const popMatch = line.match(/^(\w+)\.pop\(\);$/);
-
         if (popMatch) {
             const [, stackName] = popMatch;
-
-            const popped = state.heap.stacks[stackName].pop();
-
-            state.variables[stackName] = state.heap.stacks[stackName];
-
-            createFrame(
-                frames,
-                state,
-                i + 1,
-                `Popped ${popped} from ${stackName}`
-            );
-
+            if (state.heap.stacks[stackName]) {
+                const popped = state.heap.stacks[stackName].pop();
+                state.variables[stackName] = state.heap.stacks[stackName];
+                createFrame(frames, state, i + 1, `Popped ${popped} from ${stackName}`);
+            }
             i++;
             continue;
         }
 
         // PRINT STATEMENT
-
         const printMatch = line.match(/^System\.out\.println\((.+)\);?$/);
-
         if (printMatch) {
             const [, expr] = printMatch;
-
             let output = expr;
-
             Object.entries(state.variables).forEach(([k, v]) => {
-                output = output.replaceAll(
-                    k,
-                    String(v)
-                );
+                output = output.replaceAll(k, String(v));
             });
-
-            output = output.replace('"', "");
-
+            output = output.replace(/"/g, "");
             state.output.push(output);
-
-            createFrame(
-                frames,
-                state,
-                i + 1,
-                `Printed output: ${output}`
-            );
-
+            createFrame(frames, state, i + 1, `Printed output: ${output}`);
             i++;
             continue;
         }
 
         // FOR LOOP
-
         const forMatch = line.match(
-        /^for\s*\(\s*int\s+(\w+)\s*=\s*(\d+);\s*(\w+)\s*<\s*(\w+)\.length;\s*\w+\+\+\s*\)/
+            /^for\s*\(\s*int\s+(\w+)\s*=\s*(\d+);\s*(\w+)\s*<\s*(\w+)\.length;\s*\w+\+\+\s*\)/
         );
 
         if (forMatch) {
-            const [, iterator, start, compareVar, arrayName] = forMatch;
+            const [, iterator, start, , arrayName] = forMatch;
 
-            const arr = state.heap.arrays[arrayName];
+            // Robust array lookup: try named, then fallback to first available
+            let arr = state.heap.arrays[arrayName];
+            if (!arr && Object.keys(state.heap.arrays).length > 0) {
+                arr = Object.values(state.heap.arrays)[0];
+            }
+
+            if (!arr) {
+                i++;
+                continue;
+            }
 
             let bodyIndex = i + 1;
-            const body: string[] = [];
+            const bodyLines: {text: string, originalIndex: number}[] = [];
 
             while (
                 bodyIndex < lines.length &&
-                lines[bodyIndex] !== "}"
+                !lines[bodyIndex].startsWith("}") &&
+                !lines[bodyIndex].includes("return") // Simplified: stop loop at return
             ) {
-                body.push(lines[bodyIndex]);
+                bodyLines.push({text: lines[bodyIndex], originalIndex: bodyIndex});
                 bodyIndex++;
             }
 
@@ -247,26 +201,27 @@ const traceProgram = (code: string): ExecutionFrame[] => {
                 loopIndex++
             ) {
                 state.variables[iterator] = loopIndex;
-                state.variables.current = arr[loopIndex];
+                state.variables.currentValue = arr[loopIndex];
 
                 createFrame(
                     frames,
                     state,
                     i + 1,
-                    `Loop iteration ${loopIndex}`
+                    `Loop iteration ${loopIndex}: checking ${arr[loopIndex]}`
                 );
 
                 // IF CHECK
-
-                for (const bodyLine of body) {
-                    const ifMatch = bodyLine.match(
+                for (const item of bodyLines) {
+                    const ifMatch = item.text.match(
                         /^if\s*\(\s*(\w+)\[(\w+)\]\s*==\s*(\w+)\s*\)/
                     );
 
                     if (ifMatch) {
                         const [, arrName, idxVar, compareTo] = ifMatch;
 
-                        const arrRef = state.heap.arrays[arrName];
+                        let arrRef = state.heap.arrays[arrName] || Object.values(state.heap.arrays)[0];
+                        if (!arrRef) continue;
+
                         const idx = state.variables[idxVar];
                         const compareValue = state.variables[compareTo];
                         const currentValue = arrRef[idx];
@@ -274,19 +229,19 @@ const traceProgram = (code: string): ExecutionFrame[] => {
                         createFrame(
                             frames,
                             state,
-                            lines.indexOf(bodyLine) + 1, `Comparing ${currentValue} with ${currentValue}`
+                            item.originalIndex + 1, 
+                            `Comparing ${currentValue} with ${compareValue}`
                         );
 
                         if (currentValue === compareValue) {
                             state.variables.foundIndex = idx;
-
                             createFrame(
                                 frames,
                                 state,
-                                lines.indexOf(bodyLine) + 1,
+                                item.originalIndex + 1,
                                 `Match found at index ${idx}`
                             );
-
+                            // Exit loop early on match
                             return frames;
                         }
                     }
