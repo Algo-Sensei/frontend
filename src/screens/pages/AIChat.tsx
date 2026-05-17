@@ -76,6 +76,14 @@ function IconX() {
   );
 }
 
+function IconBack() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15 18l-6-6 6-6" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ── Input box ────────────────────────────────────────────────────────────────
 const InputBox = ({
   textareaRef,
@@ -202,7 +210,6 @@ export default function AIChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const feedRef = useRef<HTMLDivElement>(null);
   const hasMessages = messages.length > 0;
   const allowsGuestMode = new URLSearchParams(location.search).get("mode") === "guest";
   const isGuest = authChecked && !user;
@@ -453,39 +460,21 @@ export default function AIChat() {
     >
       {/* Top Navigation for Anonymous */}
       {isGuest && (
-        <div className="ai-guest-nav" style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "60px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 40px",
-          zIndex: 100
-        }}>
-          <div className="as-logo" style={{ color: "#fff", fontWeight: "bold", fontSize: "24px" }}>AS</div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ color: "#fff", opacity: 0.8 }}>AlgoSensei</span>
-            <div style={{ width: "1px", height: "20px", background: "#fff", opacity: 0.3 }}></div>
-            <button 
-              className="ai-guest-signin-btn" 
-              onClick={() => navigate("/login")}
-              style={{
-                background: "#e54d42",
-                color: "#fff",
-                border: "none",
-                padding: "8px 20px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontWeight: "500"
-              }}
-            >
-              Login / Sign in
+        <>
+          <button
+            className="ai-guest-back-btn"
+            onClick={() => navigate("/landing")}
+            aria-label="Back to landing page"
+          >
+            <IconBack />
+          </button>
+
+          <div className="ai-guest-topbar">
+            <button className="ai-guest-signin-btn" onClick={() => navigate("/login")}>
+              Sign in
             </button>
           </div>
-        </div>
+        </>
       )}
 
       {!isGuest && <Sidebar onNewChat={handleNewChat} onCollapse={() => {}} />}
