@@ -75,6 +75,14 @@ function IconX() {
   );
 }
 
+function IconBack() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15 18l-6-6 6-6" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // ── Input box ────────────────────────────────────────────────────────────────
 const InputBox = ({
   textareaRef,
@@ -159,9 +167,6 @@ const InputBox = ({
         disabled={uploading}
       >
         <IconClip />
-        <span>
-          {!canAttachFiles ? "Sign in to attach files" : uploading ? "Uploading..." : "Attach file"}
-        </span>
         <span>
           {!canAttachFiles ? "Sign in to attach files" : uploading ? "Uploading..." : "Attach file"}
         </span>
@@ -411,20 +416,6 @@ export default function AIChat() {
   }
 
   return (
-    <div style={{ position: "relative", height: "100vh", width: "100vw", overflow: "hidden", background: "#242424" }}>
-
-      <Sidebar onNewChat={handleNewChat} onCollapse={() => {}} />
-
-      <div className="ai-root">
-        {workspaceOpen && activeCode && (
-          <ALWorkspace
-            code={activeCode}
-            showVisualizer={showVisualizer}
-            onVisualize={() => setShowVisualizer(true)}
-            onClose={() => setWorkspaceOpen(false)}
-          />
-        )}
-      </div>
     <div
       className={`ai-page-shell${enteredFromHero ? " ai-page-shell-enter" : ""}`}
       style={
@@ -440,14 +431,33 @@ export default function AIChat() {
       {!isGuest && <Sidebar onNewChat={handleNewChat} onCollapse={() => {}} />}
 
       {isGuest && (
-        <div className="ai-guest-topbar">
+        <>
+          <button
+            className="ai-guest-back-btn"
+            onClick={() => navigate("/landing")}
+            aria-label="Back to landing page"
+          >
+            <IconBack />
+          </button>
+
+          <div className="ai-guest-topbar">
           <button className="ai-guest-signin-btn" onClick={() => navigate("/login")}>
             Sign in
           </button>
-        </div>
+          </div>
+        </>
       )}
 
       <div className={`ai-root${isGuest ? " ai-root-guest" : ""}${enteredFromHero ? " ai-root-enter" : ""}`}>
+        {workspaceOpen && activeCode && (
+          <ALWorkspace
+            code={activeCode}
+            showVisualizer={showVisualizer}
+            onVisualize={() => setShowVisualizer(true)}
+            onClose={() => setWorkspaceOpen(false)}
+          />
+        )}
+
         {!hasMessages ? (
           <div className="ai-empty">
             <h1 className="ai-empty-title">Got any algorithm questions?</h1>
@@ -559,7 +569,6 @@ export default function AIChat() {
           </div>
         </div>
       )}
-    </div>
     </div>
   );
 }
