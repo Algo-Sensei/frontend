@@ -3,7 +3,7 @@ import { extractCodeBlocks } from "./codeParser";
 export const MOCK_AI_RESPONSE = `
 Got it 👍 Let's make a very simple brute force algorithm example.
 
-Here's a brute-force linear search in Java — it just checks every element one by one until it finds the target:
+Here's a brute-force linear search in Java - it just checks every element one by one until it finds the target:
 
 \`\`\`java
 public class BruteForceSearch {

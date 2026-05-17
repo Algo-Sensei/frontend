@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import './Visualizer.css';
 import traceProgram, { ExecutionFrame } from './traceProgram';
+import AlgorithmRenderer from './AlgorithmRenderer';
 
-const Visualizer = ({ code }: { code: string }) => {
+const Visualizer = ({
+  code,
+  onActiveLineChange,
+  onFrameChange,
+}: {
+  code: string;
+  onActiveLineChange?: (line: number) => void;
+  onFrameChange?: (frame?: ExecutionFrame) => void;
+}) => {
   const [frames, setFrames] = useState<ExecutionFrame[]>([]);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -31,6 +40,18 @@ const Visualizer = ({ code }: { code: string }) => {
 
   const frame = frames[index];
 
+  useEffect(() => {
+    if (frame && onActiveLineChange) {
+      onActiveLineChange(frame.line);
+    }
+  }, [frame, onActiveLineChange]);
+
+  useEffect(() => {
+    if (onFrameChange) {
+      onFrameChange(frame);
+    }
+  }, [frame, onFrameChange]);
+
   return (
     <div className='visualizer'>
       <div className='visualizer-controls'>
@@ -50,7 +71,11 @@ const Visualizer = ({ code }: { code: string }) => {
       </div>
 
       <div className='visualizer-state'>
-        <pre>{JSON.stringify(frame, null, 2)}</pre>
+        <AlgorithmRenderer
+          frame={frame}
+          frameIndex={index}
+          totalFrames={frames.length}
+        />
       </div>
     </div>
   );

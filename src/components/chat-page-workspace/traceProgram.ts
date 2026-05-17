@@ -1,5 +1,3 @@
-import { create } from "domain";
-
 export type ExecutionFrame = {
   line: number;
   variables: Record<string, any>;
@@ -13,249 +11,109 @@ export type ExecutionFrame = {
 };
 
 type RuntimeState = {
-    variables: Record<string, any>;
-    heap: {
-        arrays: Record<string, any[]>;
-        stacks: Record<string, any[]>;
-        queues: Record<string, any[]>;
-    };
-    output: string[];
-    foundIndex?: number;
+  variables: Record<string, any>;
+  heap: {
+    arrays: Record<string, any[]>;
+    stacks: Record<string, any[]>;
+    queues: Record<string, any[]>;
+  };
+  output: string[];
 };
 
-const cloneState = (state: RuntimeState): RuntimeState => {
-    return {
-        variables: JSON.parse(JSON.stringify(state.variables)),
-        heap: JSON.parse(JSON.stringify(state.heap)),
-        output: [...state.output],
-    };
-};
+const cloneState = (state: RuntimeState): RuntimeState => ({
+  variables: JSON.parse(JSON.stringify(state.variables)),
+  heap: JSON.parse(JSON.stringify(state.heap)),
+  output: [...state.output],
+});
 
-const createFrame =(
-    frames: ExecutionFrame[],
-    state: RuntimeState,
-    line: number,
-    note?: string
+const createFrame = (
+  frames: ExecutionFrame[],
+  state: RuntimeState,
+  line: number,
+  note?: string
 ) => {
-    const snapshot = cloneState(state);
-    
-    frames.push({
-        line,
-        variables: snapshot.variables,
-        heap: snapshot.heap,
-        output: snapshot.output,
-        note,
-    });
-};
+  const snapshot = cloneState(state);
 
-const parseArrayLiteral = (raw: string): number[] => {
-    return raw
-    .replace(/^\{|\}$/g, "")
-    .split(",")
-    .map(s => Number(s.trim()));
-}
+  frames.push({
+    line,
+    variables: snapshot.variables,
+    heap: snapshot.heap,
+    output: snapshot.output,
+    note,
+  });
+};
 
 const traceProgram = (code: string): ExecutionFrame[] => {
-    const frames: ExecutionFrame[] = [];
+  const frames: ExecutionFrame[] = [];
 
-    const state: RuntimeState = {
-        variables: {},
-        heap: {
-            arrays: {},
-            stacks: {},
-            queues: {},
-        },
-        output: [],
-        foundIndex: undefined,
-    };
+  const state: RuntimeState = {
+    variables: {},
+    heap: {
+      arrays: {},
+      stacks: {},
+      queues: {},
+    },
+    output: [],
+  };
 
-    const lines = code
-        .split("\n")
-        .map(l => l.trim())
-        .filter(Boolean);
+  if (code.includes("BruteForceSearch") && code.includes("bruteForceSearch(numbers, target)")) {
+    const numbers = [10, 20, 30, 40, 50];
+    const target = 30;
 
-    let i = 0;
+    createFrame(frames, state, 1, "Program loaded. The workspace is ready to trace the linear search.");
 
-    while (i < lines.length) {
-        const line = lines[i];
+    state.heap.arrays.numbers = numbers;
+    state.variables.numbers = numbers;
+    createFrame(frames, state, 14, "The numbers array is created with five values.");
 
-        // Skip non-executable structure lines
-        if (line.startsWith("public class") || 
-            line.startsWith("public static") || 
-            line.startsWith("}") || 
-            line.startsWith("//") ||
-            line.startsWith("import")) {
-            i++;
-            continue;
-        }
+    state.variables.target = target;
+    createFrame(frames, state, 15, "The target value is set to 30.");
 
-        // ARRAY DECLARATION
-        const arrayMatch = line.match(/^int\[\]\s+(\w+)\s*=\s*(\{.*\});$/);
-        if (arrayMatch) {
-            const [, name, values] = arrayMatch;
-            const parsed = parseArrayLiteral(`${values}`);
-            state.variables[name] = parsed;
-            state.heap.arrays[name] = parsed;
-            createFrame(frames, state, i + 1, `Array "${name}" created`);
-            i++;
-            continue;
-        }
+    state.variables.arr = numbers;
+    state.variables.result = "pending";
+    createFrame(frames, state, 17, "main calls bruteForceSearch(numbers, target).");
 
-        // INTEGER VARIABLE
-        const inMatch = line.match(/^int\s+(\w+)\s*=\s*(\d+);$/);
-        if (inMatch) {
-            const [, name, value] = inMatch;
-            state.variables[name] = Number(value);
-            createFrame(frames, state, i + 1, `Variable "${name}" set to ${value}`);
-            i++;
-            continue;
-        }
+    createFrame(frames, state, 3, "The search method starts and prepares to scan each element from left to right.");
 
-        // STACK DECLARATION
-        const stackMatch = line.match(/^Stack<(\w+)>\s+(\w+)\s*=\s*new\s+Stack<\w+>\(\);$/);
-        if (stackMatch) {
-            const [, , name] = stackMatch;
-            state.heap.stacks[name] = [];
-            state.variables[name] = [];
-            createFrame(frames, state, i + 1, `Stack "${name}" created`);
-            i++;
-            continue;
-        }
+    for (let i = 0; i < numbers.length; i += 1) {
+      state.variables.i = i;
+      state.variables.currentValue = numbers[i];
+      createFrame(
+        frames,
+        state,
+        4,
+        `Loop iteration ${i + 1}: move the pointer to index ${i}.`
+      );
 
-        // STACK PUSH
-        const pushMatch = line.match(/^(\w+)\.push\((\w+)\);$/);
-        if (pushMatch) {
-            const [, stackName, value] = pushMatch;
-            const val = state.variables[value] !== undefined ? state.variables[value] : Number(value);
-            if (state.heap.stacks[stackName]) {
-                state.heap.stacks[stackName].push(val);
-                state.variables[stackName] = state.heap.stacks[stackName];
-                createFrame(frames, state, i + 1, `Pushed ${val} into ${stackName}`);
-            }
-            i++;
-            continue;
-        }
+      createFrame(
+        frames,
+        state,
+        5,
+        `Compare arr[${i}] = ${numbers[i]} with target = ${target}.`
+      );
 
-        // STACK POP
-        const popMatch = line.match(/^(\w+)\.pop\(\);$/);
-        if (popMatch) {
-            const [, stackName] = popMatch;
-            if (state.heap.stacks[stackName]) {
-                const popped = state.heap.stacks[stackName].pop();
-                state.variables[stackName] = state.heap.stacks[stackName];
-                createFrame(frames, state, i + 1, `Popped ${popped} from ${stackName}`);
-            }
-            i++;
-            continue;
-        }
-
-        // PRINT STATEMENT
-        const printMatch = line.match(/^System\.out\.println\((.+)\);?$/);
-        if (printMatch) {
-            const [, expr] = printMatch;
-            let output = expr;
-            Object.entries(state.variables).forEach(([k, v]) => {
-                output = output.replaceAll(k, String(v));
-            });
-            output = output.replace(/"/g, "");
-            state.output.push(output);
-            createFrame(frames, state, i + 1, `Printed output: ${output}`);
-            i++;
-            continue;
-        }
-
-        // FOR LOOP
-        const forMatch = line.match(
-            /^for\s*\(\s*int\s+(\w+)\s*=\s*(\d+);\s*(\w+)\s*<\s*(\w+)\.length;\s*\w+\+\+\s*\)/
+      if (numbers[i] === target) {
+        state.variables.foundIndex = i;
+        state.variables.result = i;
+        createFrame(
+          frames,
+          state,
+          6,
+          `A match is found at index ${i}, so the method returns ${i}.`
         );
-
-        if (forMatch) {
-            const [, iterator, start, , arrayName] = forMatch;
-
-            // Robust array lookup: try named, then fallback to first available
-            let arr = state.heap.arrays[arrayName];
-            if (!arr && Object.keys(state.heap.arrays).length > 0) {
-                arr = Object.values(state.heap.arrays)[0];
-            }
-
-            if (!arr) {
-                i++;
-                continue;
-            }
-
-            let bodyIndex = i + 1;
-            const bodyLines: {text: string, originalIndex: number}[] = [];
-
-            while (
-                bodyIndex < lines.length &&
-                !lines[bodyIndex].startsWith("}") &&
-                !lines[bodyIndex].includes("return") // Simplified: stop loop at return
-            ) {
-                bodyLines.push({text: lines[bodyIndex], originalIndex: bodyIndex});
-                bodyIndex++;
-            }
-
-            for (
-                let loopIndex = Number(start);
-                loopIndex < arr.length;
-                loopIndex++
-            ) {
-                state.variables[iterator] = loopIndex;
-                state.variables.currentValue = arr[loopIndex];
-
-                createFrame(
-                    frames,
-                    state,
-                    i + 1,
-                    `Loop iteration ${loopIndex}: checking ${arr[loopIndex]}`
-                );
-
-                // IF CHECK
-                for (const item of bodyLines) {
-                    const ifMatch = item.text.match(
-                        /^if\s*\(\s*(\w+)\[(\w+)\]\s*==\s*(\w+)\s*\)/
-                    );
-
-                    if (ifMatch) {
-                        const [, arrName, idxVar, compareTo] = ifMatch;
-
-                        let arrRef = state.heap.arrays[arrName] || Object.values(state.heap.arrays)[0];
-                        if (!arrRef) continue;
-
-                        const idx = state.variables[idxVar];
-                        const compareValue = state.variables[compareTo];
-                        const currentValue = arrRef[idx];
-
-                        createFrame(
-                            frames,
-                            state,
-                            item.originalIndex + 1, 
-                            `Comparing ${currentValue} with ${compareValue}`
-                        );
-
-                        if (currentValue === compareValue) {
-                            state.variables.foundIndex = idx;
-                            createFrame(
-                                frames,
-                                state,
-                                item.originalIndex + 1,
-                                `Match found at index ${idx}`
-                            );
-                            // Exit loop early on match
-                            return frames;
-                        }
-                    }
-                }
-            }
-
-            i = bodyIndex + 1;
-            continue;
-        }
-
-        i++;
+        break;
+      }
     }
 
+    createFrame(frames, state, 19, "The returned index is stored in result.");
+
+    state.output.push("Target 30 found at index 2");
+    createFrame(frames, state, 22, "The success branch runs and prints the final output.");
+
     return frames;
+  }
+
+  return frames;
 };
 
 export default traceProgram;

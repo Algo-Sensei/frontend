@@ -116,7 +116,7 @@ const InputBox = ({
   canAttachFiles: boolean;
   onRequireLogin: () => void;
 }) => (
-  <div className="ai-input-card" style={{ background: '#2e2e2e', borderRadius: '16px', border: '1px solid #3a3a3a', padding: '12px' }}>
+  <div className="ai-input-card" style={{ width: '100%', background: '#2e2e2e', borderRadius: '16px', border: '1px solid #3a3a3a', padding: '12px' }}>
     {/* file preview strip */}
     {preview && (
       <div className="ai-preview-strip">
@@ -201,6 +201,7 @@ export default function AIChat() {
   const [preview, setPreview] = useState<Attachment | null>(null); // local preview before send
   const [uploading, setUploading] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceWidth, setWorkspaceWidth] = useState(480);
   const [activeCode, setActiveCode] = useState<CodeArtifact | null>(null);
   const [showVisualizer, setShowVisualizer] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -208,6 +209,7 @@ export default function AIChat() {
   const [authChecked, setAuthChecked] = useState(false);
   const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const splitRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasMessages = messages.length > 0;
@@ -297,6 +299,35 @@ export default function AIChat() {
     setWorkspaceOpen(true);
     setShowVisualizer(false);
   }
+
+  const clampWorkspaceWidth = (nextWidth: number) => {
+    const containerWidth = splitRef.current?.getBoundingClientRect().width ?? window.innerWidth;
+    const minWorkspaceWidth = Math.min(360, Math.max(280, containerWidth - 320));
+    const maxWorkspaceWidth = Math.max(minWorkspaceWidth, containerWidth / 2);
+    return Math.min(Math.max(nextWidth, minWorkspaceWidth), maxWorkspaceWidth);
+  };
+
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const pointerId = e.pointerId;
+    e.currentTarget.setPointerCapture(pointerId);
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const bounds = splitRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setWorkspaceWidth(clampWorkspaceWidth(bounds.right - event.clientX));
+    };
+
+    const stopResize = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+      window.removeEventListener("pointercancel", stopResize);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResize);
+    window.addEventListener("pointercancel", stopResize);
+  };
 
   // when user picks a file — show local preview immediately, then upload to backend
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -481,165 +512,172 @@ export default function AIChat() {
 
       <div className={`ai-root${isGuest ? " ai-root-guest" : ""}${enteredFromHero ? " ai-root-enter" : ""}`} 
            style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
-        
-        {!hasMessages ? (
-          <div className="ai-empty" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <h1 className="ai-empty-title">Got any algorithm questions?</h1>
-            <div style={{ width: "100%", maxWidth: 580 }}>
-              <InputBox
-                textareaRef={textareaRef}
-                fileInputRef={fileInputRef}
-                onKeyDown={handleKeyDown}
-                onInput={handleTextareaInput}
-                onSend={send}
-                onFileChange={handleFileChange}
-                onRemovePreview={handleRemovePreview}
-                onMockAI={handleMockAI}
-                canSend={canSend}
-                isTyping={isTyping}
-                preview={preview}
-                uploading={uploading}
-                canAttachFiles={!isGuest}
-                onRequireLogin={() => setShowGuestAttachmentModal(true)}
-              />
-            </div>
-            {error && <p className="ai-error-text">{error}</p>}
-          </div>
-        ) : (
-          <>
-            <div className="ai-feed" style={{ flex: 1, overflowY: "auto", padding: "80px 20% 120px 20%" }}>
-              {messages.map(msg => (
-                <div key={msg.id} className="ai-msg-row" style={{ 
-                  display: "flex",
-                  justifyContent: msg.role === "user" ? "flex-end" : "flex-start", 
-                  marginBottom: "20px",
-                  gap: "12px"
-                }}>
-                  {msg.role === "ai" && (
-                    <div className="ai-avatar" style={{ 
-                      width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
-                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
+        <div className="ai-split-layout" ref={splitRef}>
+          <div className="ai-chat-pane">
+            {!hasMessages ? (
+              <div className="ai-empty" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <h1 className="ai-empty-title">Got any algorithm questions?</h1>
+                <div style={{ width: "100%", maxWidth: 580 }}>
+                  <InputBox
+                    textareaRef={textareaRef}
+                    fileInputRef={fileInputRef}
+                    onKeyDown={handleKeyDown}
+                    onInput={handleTextareaInput}
+                    onSend={send}
+                    onFileChange={handleFileChange}
+                    onRemovePreview={handleRemovePreview}
+                    onMockAI={handleMockAI}
+                    canSend={canSend}
+                    isTyping={isTyping}
+                    preview={preview}
+                    uploading={uploading}
+                    canAttachFiles={!isGuest}
+                    onRequireLogin={() => setShowGuestAttachmentModal(true)}
+                  />
+                </div>
+                {error && <p className="ai-error-text">{error}</p>}
+              </div>
+            ) : (
+              <>
+                <div className="ai-feed" style={{ flex: 1, overflowY: "auto", padding: "80px clamp(24px, 8%, 20%) 120px" }}>
+                  {messages.map(msg => (
+                    <div key={msg.id} className="ai-msg-row" style={{ 
+                      display: "flex",
+                      justifyContent: msg.role === "user" ? "flex-end" : "flex-start", 
+                      marginBottom: "20px",
+                      gap: "12px"
                     }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                      {msg.role === "ai" && (
+                        <div className="ai-avatar" style={{ 
+                          width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
+                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                        </div>
+                      )}
+                      
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%" }}>
+                        {msg.text && (
+                          <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"} style={{
+                            padding: "12px 20px",
+                            borderRadius: "16px",
+                            background: msg.role === "user" ? "#3a3a3a" : "transparent",
+                            color: "#fff",
+                            fontSize: "14px",
+                            lineHeight: "1.5",
+                            border: msg.role === "ai" ? "1px solid #333" : "none"
+                          }}>
+                            {msg.text}
+                          </div>
+                        )}
+                        
+                        {msg.code?.map((snippet, i) => (
+                          <button
+                            key={i}
+                            className="ai-code-pill"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openWorkspace(snippet);
+                            }}
+                            style={{
+                              background: "#2a2a2a",
+                              border: "1px solid #3a3a3a",
+                              borderRadius: "8px",
+                              padding: "12px 20px",
+                              marginTop: "10px",
+                              color: "#fff",
+                              width: "100%",
+                              textAlign: "left",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              fontWeight: "500"
+                            }}
+                          >
+                            {snippet.filename.includes('linear search') ? 'Brute-force linear search in Java' : snippet.filename}
+                          </button>
+                        ))}
+
+                        {msg.role === "ai" && (
+                          <div className="ai-feedback" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                            <button style={{ background: 'none', border: 'none', color: '#fff', opacity: 0.6, cursor: 'pointer', padding: '4px' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                            </button>
+                            <button style={{ background: 'none', border: 'none', color: '#fff', opacity: 0.6, cursor: 'pointer', padding: '4px' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zM17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {msg.role === "user" && (
+                        <div className="user-avatar" style={{ 
+                          width: "32px", height: "32px", background: "#fff", borderRadius: "50%", flexShrink: 0 
+                        }}></div>
+                      )}
+                    </div>
+                  ))}
+
+                  {isTyping && (
+                    <div className="ai-msg-row" style={{ justifyContent: "flex-start", gap: "12px" }}>
+                      <div className="ai-avatar" style={{ 
+                          width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
+                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                        </div>
+                      <div className="ai-typing-bubble">
+                        {[0, 0.2, 0.4].map((d, i) => <span key={i} className="ai-dot" style={{ animationDelay: `${d}s` }} />)}
+                      </div>
                     </div>
                   )}
-                  
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%" }}>
-                    {msg.text && (
-                      <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"} style={{
-                        padding: "12px 20px",
-                        borderRadius: "16px",
-                        background: msg.role === "user" ? "#3a3a3a" : "transparent",
-                        color: "#fff",
-                        fontSize: "14px",
-                        lineHeight: "1.5",
-                        border: msg.role === "ai" ? "1px solid #333" : "none"
-                      }}>
-                        {msg.text}
-                      </div>
-                    )}
-                    
-                    {msg.code?.map((snippet, i) => (
-                      <button
-                        key={i}
-                        className="ai-code-pill"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openWorkspace(snippet);
-                        }}
-                        style={{
-                          background: "#2a2a2a",
-                          border: "1px solid #3a3a3a",
-                          borderRadius: "8px",
-                          padding: "12px 20px",
-                          marginTop: "10px",
-                          color: "#fff",
-                          width: "100%",
-                          textAlign: "left",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          fontWeight: "500"
-                        }}
-                      >
-                        {snippet.filename.includes('linear search') ? 'Brute-force linear search in Java' : snippet.filename}
-                      </button>
-                    ))}
 
-                    {msg.role === "ai" && (
-                      <div className="ai-feedback" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        <button style={{ background: 'none', border: 'none', color: '#fff', opacity: 0.6, cursor: 'pointer', padding: '4px' }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-                        </button>
-                        <button style={{ background: 'none', border: 'none', color: '#fff', opacity: 0.6, cursor: 'pointer', padding: '4px' }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zM17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {msg.role === "user" && (
-                    <div className="user-avatar" style={{ 
-                      width: "32px", height: "32px", background: "#fff", borderRadius: "50%", flexShrink: 0 
-                    }}></div>
-                  )}
+                  <div ref={bottomRef} />
                 </div>
-              ))}
 
-              {isTyping && (
-                <div className="ai-msg-row" style={{ justifyContent: "flex-start", gap: "12px" }}>
-                   <div className="ai-avatar" style={{ 
-                      width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
-                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
-                    }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                    </div>
-                  <div className="ai-typing-bubble">
-                    {[0, 0.2, 0.4].map((d, i) => <span key={i} className="ai-dot" style={{ animationDelay: `${d}s` }} />)}
-                  </div>
+                <div className="ai-bottom-bar" style={{ position: "absolute", bottom: "30px", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 48px)", maxWidth: "700px" }}>
+                  <InputBox
+                    textareaRef={textareaRef}
+                    fileInputRef={fileInputRef}
+                    onKeyDown={handleKeyDown}
+                    onInput={handleTextareaInput}
+                    onSend={send}
+                    onFileChange={handleFileChange}
+                    onRemovePreview={handleRemovePreview}
+                    onMockAI={handleMockAI}
+                    canSend={canSend}
+                    isTyping={isTyping}
+                    preview={preview}
+                    uploading={uploading}
+                    canAttachFiles={!isGuest}
+                    onRequireLogin={() => setShowGuestAttachmentModal(true)}
+                  />
                 </div>
-              )}
-
-              <div ref={bottomRef} />
-            </div>
-
-            <div className="ai-bottom-bar" style={{ position: "absolute", bottom: "30px", left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: "700px" }}>
-              <InputBox
-                textareaRef={textareaRef}
-                fileInputRef={fileInputRef}
-                onKeyDown={handleKeyDown}
-                onInput={handleTextareaInput}
-                onSend={send}
-                onFileChange={handleFileChange}
-                onRemovePreview={handleRemovePreview}
-                onMockAI={handleMockAI}
-                canSend={canSend}
-                isTyping={isTyping}
-                preview={preview}
-                uploading={uploading}
-                canAttachFiles={!isGuest}
-                onRequireLogin={() => setShowGuestAttachmentModal(true)}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Workspace Overlay/Sidepanel */}
-        {workspaceOpen && activeCode && (
-          <div style={{ 
-            position: 'absolute', top: 0, right: 0, width: '450px', height: '100%', 
-            zIndex: 1000, background: '#1e1e1e', borderLeft: '1px solid #333',
-            boxShadow: '-5px 0 15px rgba(0,0,0,0.5)' 
-          }}>
-            <ALWorkspace
-              code={activeCode}
-              showVisualizer={showVisualizer}
-              onVisualize={() => setShowVisualizer(true)}
-              onClose={() => setWorkspaceOpen(false)}
-            />
+              </>
+            )}
           </div>
-        )}
+
+          {workspaceOpen && activeCode && (
+            <>
+              <div
+                className="ai-resize-handle"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize workspace"
+                onPointerDown={handleResizeStart}
+              />
+              <div className="ai-workspace-pane" style={{ width: workspaceWidth }}>
+                <ALWorkspace
+                  code={activeCode}
+                  showVisualizer={showVisualizer}
+                  onVisualize={() => setShowVisualizer(true)}
+                  onClose={() => setWorkspaceOpen(false)}
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {showGuestAttachmentModal && (
