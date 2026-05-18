@@ -19,7 +19,7 @@ const Visualizer = ({
   
   useEffect(() => {
     setFrames(traceProgram(code));
-    setIndex(0);
+    setIndex(-1);
   }, [code]);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ const Visualizer = ({
     return () => clearInterval(id);
   }, [playing, speed, frames.length]);
 
-  const frame = frames[index];
+  const frame = index >= 0 ? frames[index] : undefined;
 
   useEffect(() => {
     if (frame && onActiveLineChange) {
@@ -55,7 +55,7 @@ const Visualizer = ({
   return (
     <div className='visualizer'>
       <div className='visualizer-controls'>
-        <button onClick={() => setIndex(i => Math.max(0, i - 1))}>Prev</button>
+        <button onClick={() => setIndex(i => Math.max(-1, i - 1))}>Prev</button>
         <button onClick={() => setPlaying(v => !v)}>
           {playing ? "Pause" : "Play"}
         </button>
