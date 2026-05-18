@@ -1,7 +1,8 @@
-import type { ExecutionFrame } from "./traceProgram";
+import type { ExecutionFrame } from "./dynamicTracer";
 
 type AlgorithmRendererProps = {
   frame?: ExecutionFrame;
+  previousFrame?: ExecutionFrame;
   frameIndex: number;
   totalFrames: number;
 };
@@ -11,13 +12,27 @@ const formatValue = (value: unknown) => {
     return `[${value.join(", ")}]`;
   }
 
+  if (typeof value === "object" && value !== null) {
+    return JSON.stringify(value);
+  }
+
   return String(value ?? "-");
 };
 
-const extractScene = (frame?: ExecutionFrame) => {
+const valuesAreEqual = (left: unknown, right: unknown) => {
+  return JSON.stringify(left) === JSON.stringify(right);
+};
+
+const extractScene = (frame?: ExecutionFrame, previousFrame?: ExecutionFrame) => {
   const arrayEntry = Object.entries(frame?.heap?.arrays ?? {})[0];
   const [arrayName, arrayValues] = arrayEntry ?? ["array", []];
   const safeValues = Array.isArray(arrayValues) ? arrayValues : [];
+  const variableEntries = Object.entries(frame?.variables ?? {});
+  const changedVariables = new Set(
+    variableEntries
+      .filter(([name, value]) => !valuesAreEqual(value, previousFrame?.variables?.[name]))
+      .map(([name]) => name)
+  );
 
   const iterator = typeof frame?.variables?.i === "number" ? frame.variables.i : null;
   const foundIndex =
@@ -38,11 +53,13 @@ const extractScene = (frame?: ExecutionFrame) => {
     foundIndex,
     currentValue,
     target,
+    variableEntries,
+    changedVariables,
   };
 };
 
-const AlgorithmRenderer = ({ frame, frameIndex, totalFrames }: AlgorithmRendererProps) => {
-  const scene = extractScene(frame);
+const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: AlgorithmRendererProps) => {
+  const scene = extractScene(frame, previousFrame);
 
   return (
     <div className="algo-renderer">
@@ -83,18 +100,28 @@ const AlgorithmRenderer = ({ frame, frameIndex, totalFrames }: AlgorithmRenderer
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', flex: 1 }}>
                 
                 {/* Local Variables */}
-                <div style={{ display: 'flex', gap: '24px' }}>
-                    {scene.target !== null && (
-                        <div className="algo-renderer-target-block">
-                            <span className="algo-renderer-chip-label" style={{ color: '#fff' }}>target</span>
-                            <div className="algo-renderer-chip">{formatValue(scene.target)}</div>
+                <div className="algo-renderer-variables-panel">
+                    <div className="algo-renderer-label" style={{ color: '#fff', fontSize: '13px' }}>Local Variables</div>
+                    {scene.variableEntries.length > 0 ? (
+                        <div className="algo-renderer-variable-grid">
+                            {scene.variableEntries.map(([name, value]) => {
+                                const changed = scene.changedVariables.has(name);
+
+                                return (
+                                    <div
+                                        className={`algo-renderer-variable-card${changed ? " changed" : ""}`}
+                                        key={name}
+                                    >
+                                        <span className="algo-renderer-chip-label" style={{ color: '#fff' }}>{name}</span>
+                                        <div className="algo-renderer-chip algo-renderer-variable-value">
+                                            {formatValue(value)}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    )}
-                    {scene.iterator !== null && (
-                        <div className="algo-renderer-target-block">
-                            <span className="algo-renderer-chip-label" style={{ color: '#fff' }}>i</span>
-                            <div className="algo-renderer-chip">{scene.iterator}</div>
-                        </div>
+                    ) : (
+                        <div className="algo-renderer-empty">No declared variables yet</div>
                     )}
                 </div>
 

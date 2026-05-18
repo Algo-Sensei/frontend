@@ -8,7 +8,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
   const [currentFrame, setCurrentFrame] = useState<ExecutionFrame | undefined>(undefined);
 
   const codeLines = code.code.split("\n");
-  const fileName = code.filename || "BruteForceSearch.java";
+  const fileName = code.filename || "Snippet.java";
   const outputText = currentFrame?.output?.length
     ? currentFrame.output[currentFrame.output.length - 1]
     : code.output || "";
@@ -42,7 +42,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
         <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>AlgoSensei&apos;s Workspace</h2>
           <span style={{ fontSize: "14px", opacity: 0.75 }}>
-            Brute-force linear search in Java
+            {fileName}
           </span>
         </div>
 

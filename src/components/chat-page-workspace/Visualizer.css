@@ -138,6 +138,41 @@
   min-width: 72px;
 }
 
+.algo-renderer-variables-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.algo-renderer-variable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(86px, max-content));
+  gap: 12px;
+  align-items: start;
+}
+
+.algo-renderer-variable-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 72px;
+}
+
+.algo-renderer-variable-card.changed .algo-renderer-chip {
+  border-color: #ffd0c8;
+  background: #ff7b6b;
+  color: #fff7f4;
+  box-shadow: 0 0 0 2px rgba(255, 208, 200, 0.2), 0 10px 26px rgba(255, 123, 107, 0.28);
+}
+
+.algo-renderer-variable-value {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .algo-renderer-chip {
   min-width: 48px;
   padding: 9px 12px;

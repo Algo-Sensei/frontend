@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './Visualizer.css';
-import traceProgram, { ExecutionFrame } from './traceProgram';
+import { traceDynamicJava as traceProgram, ExecutionFrame } from './dynamicTracer';
 import AlgorithmRenderer from './AlgorithmRenderer';
 
 const Visualizer = ({
@@ -73,6 +73,7 @@ const Visualizer = ({
       <div className='visualizer-state'>
         <AlgorithmRenderer
           frame={frame}
+          previousFrame={frames[index - 1]}
           frameIndex={index}
           totalFrames={frames.length}
         />
