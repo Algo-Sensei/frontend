@@ -60,6 +60,10 @@ const Visualizer = ({
           {playing ? "Pause" : "Play"}
         </button>
         <button onClick={() => setIndex(i => Math.min(frames.length - 1, i + 1))}>Next</button>
+        <button onClick={() => {
+          setIndex(-1);
+          setPlaying(true);
+        }}>Restart</button>
 
         <select value={speed}
         onChange={e => setSpeed(Number(e.target.value))}
