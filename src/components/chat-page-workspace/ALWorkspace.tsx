@@ -1,14 +1,271 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import "./ALWorkspace.css";
 import Visualizer from "./Visualizer";
 import type { ExecutionFrame } from "./traceProgram";
+
+type SyntaxToken = {
+  text: string;
+  type:
+    | "annotation"
+    | "boolean"
+    | "class-name"
+    | "comment"
+    | "identifier"
+    | "keyword"
+    | "method"
+    | "number"
+    | "operator"
+    | "punctuation"
+    | "string"
+    | "type"
+    | "plain";
+};
+
+const javaKeywords = new Set([
+  "abstract",
+  "break",
+  "case",
+  "catch",
+  "class",
+  "const",
+  "continue",
+  "default",
+  "do",
+  "else",
+  "extends",
+  "final",
+  "finally",
+  "for",
+  "if",
+  "implements",
+  "import",
+  "instanceof",
+  "interface",
+  "native",
+  "new",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "return",
+  "static",
+  "super",
+  "switch",
+  "synchronized",
+  "this",
+  "throw",
+  "throws",
+  "transient",
+  "try",
+  "void",
+  "volatile",
+  "while",
+]);
+
+const javaTypes = new Set([
+  "boolean",
+  "byte",
+  "char",
+  "double",
+  "float",
+  "int",
+  "long",
+  "short",
+  "String",
+  "Integer",
+  "Double",
+  "Float",
+  "Boolean",
+  "Character",
+  "Object",
+  "ArrayList",
+  "List",
+  "Map",
+  "Set",
+  "HashMap",
+  "HashSet",
+  "Queue",
+  "Stack",
+]);
+
+const javaValues = new Set(["true", "false", "null"]);
+
+const tokenClassName = (type: SyntaxToken["type"]) => `code-token code-token-${type}`;
+
+const readQuotedToken = (line: string, start: number) => {
+  const quote = line[start];
+  let end = start + 1;
+
+  while (end < line.length) {
+    if (line[end] === "\\" && end + 1 < line.length) {
+      end += 2;
+      continue;
+    }
+
+    if (line[end] === quote) {
+      end += 1;
+      break;
+    }
+
+    end += 1;
+  }
+
+  return end;
+};
+
+const tokenizeCodeLine = (line: string, startsInBlockComment: boolean) => {
+  const tokens: SyntaxToken[] = [];
+  let index = 0;
+  let inBlockComment = startsInBlockComment;
+
+  const pushToken = (text: string, type: SyntaxToken["type"]) => {
+    if (text) {
+      tokens.push({ text, type });
+    }
+  };
+
+  while (index < line.length) {
+    if (inBlockComment) {
+      const endComment = line.indexOf("*/", index);
+
+      if (endComment === -1) {
+        pushToken(line.slice(index), "comment");
+        return { tokens, endsInBlockComment: true };
+      }
+
+      pushToken(line.slice(index, endComment + 2), "comment");
+      index = endComment + 2;
+      inBlockComment = false;
+      continue;
+    }
+
+    const char = line[index];
+    const nextChar = line[index + 1];
+
+    if (char === "/" && nextChar === "/") {
+      pushToken(line.slice(index), "comment");
+      break;
+    }
+
+    if (char === "/" && nextChar === "*") {
+      const endComment = line.indexOf("*/", index + 2);
+
+      if (endComment === -1) {
+        pushToken(line.slice(index), "comment");
+        return { tokens, endsInBlockComment: true };
+      }
+
+      pushToken(line.slice(index, endComment + 2), "comment");
+      index = endComment + 2;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      const end = readQuotedToken(line, index);
+      pushToken(line.slice(index, end), "string");
+      index = end;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      const match = line.slice(index).match(/^\s+/);
+      const text = match?.[0] ?? char;
+      pushToken(text, "plain");
+      index += text.length;
+      continue;
+    }
+
+    if (char === "@") {
+      const match = line.slice(index).match(/^@\w+/);
+      const text = match?.[0] ?? char;
+      pushToken(text, "annotation");
+      index += text.length;
+      continue;
+    }
+
+    if (/\d/.test(char)) {
+      const match = line.slice(index).match(/^\d+(?:\.\d+)?(?:[dDfFlL])?/);
+      const text = match?.[0] ?? char;
+      pushToken(text, "number");
+      index += text.length;
+      continue;
+    }
+
+    if (/[A-Za-z_$]/.test(char)) {
+      const match = line.slice(index).match(/^[A-Za-z_$][\w$]*/);
+      const text = match?.[0] ?? char;
+      const rest = line.slice(index + text.length);
+      const nextNonSpace = rest.match(/^\s*(.)/)?.[1];
+      const previousChar = line[index - 1];
+
+      if (javaTypes.has(text)) {
+        pushToken(text, "type");
+      } else if (javaKeywords.has(text)) {
+        pushToken(text, "keyword");
+      } else if (javaValues.has(text)) {
+        pushToken(text, "boolean");
+      } else if (nextNonSpace === "(" && previousChar !== ".") {
+        pushToken(text, "method");
+      } else if (/^[A-Z]/.test(text)) {
+        pushToken(text, "class-name");
+      } else {
+        pushToken(text, "identifier");
+      }
+
+      index += text.length;
+      continue;
+    }
+
+    if (/[+\-*/%=!<>&|?:.]/.test(char)) {
+      const match = line.slice(index).match(/^(?:===|!==|>>>|<<=|>>=|==|!=|<=|>=|\+\+|--|&&|\|\||<<|>>|\+=|-=|\*=|\/=|%=|->|::|[+\-*/%=!<>&|?:.])/);
+      const text = match?.[0] ?? char;
+      pushToken(text, "operator");
+      index += text.length;
+      continue;
+    }
+
+    if (/[()[\]{};,]/.test(char)) {
+      pushToken(char, "punctuation");
+      index += 1;
+      continue;
+    }
+
+    pushToken(char, "plain");
+    index += 1;
+  }
+
+  return { tokens, endsInBlockComment: inBlockComment };
+};
+
+const tokenizeCode = (lines: string[]) => {
+  let inBlockComment = false;
+
+  return lines.map((line) => {
+    const result = tokenizeCodeLine(line, inBlockComment);
+    inBlockComment = result.endsInBlockComment;
+    return result.tokens;
+  });
+};
+
+const renderHighlightedLine = (tokens: SyntaxToken[], lineNumber: number): ReactNode => {
+  if (tokens.length === 0) {
+    return " ";
+  }
+
+  return tokens.map((token, tokenIndex) => (
+    <span className={tokenClassName(token.type)} key={`${lineNumber}-${tokenIndex}`}>
+      {token.text}
+    </span>
+  ));
+};
 
 const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [currentFrame, setCurrentFrame] = useState<ExecutionFrame | undefined>(undefined);
 
   const codeLines = code.code.split("\n");
-  const fileName = code.filename || "BruteForceSearch.java";
+  const highlightedCodeLines = tokenizeCode(codeLines);
+  const fileName = code.filename || "Snippet.java";
   const outputText = currentFrame?.output?.length
     ? currentFrame.output[currentFrame.output.length - 1]
     : code.output || "";
@@ -42,7 +299,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
         <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "bold" }}>AlgoSensei&apos;s Workspace</h2>
           <span style={{ fontSize: "14px", opacity: 0.75 }}>
-            Brute-force linear search in Java
+            {fileName}
           </span>
         </div>
 
@@ -223,7 +480,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
                     {lineNumber}
                   </div>
                   <div style={{ padding: "0 16px 0 0", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                    {lineText || " "}
+                    {renderHighlightedLine(highlightedCodeLines[idx], lineNumber)}
                   </div>
                 </div>
               );

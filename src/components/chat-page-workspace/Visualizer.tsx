@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './Visualizer.css';
-import traceProgram, { ExecutionFrame } from './traceProgram';
+import { traceDynamicJava as traceProgram, ExecutionFrame } from './dynamicTracer';
 import AlgorithmRenderer from './AlgorithmRenderer';
 
 const Visualizer = ({
@@ -19,7 +19,7 @@ const Visualizer = ({
   
   useEffect(() => {
     setFrames(traceProgram(code));
-    setIndex(0);
+    setIndex(-1);
   }, [code]);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ const Visualizer = ({
     return () => clearInterval(id);
   }, [playing, speed, frames.length]);
 
-  const frame = frames[index];
+  const frame = index >= 0 ? frames[index] : undefined;
 
   useEffect(() => {
     if (frame && onActiveLineChange) {
@@ -55,11 +55,15 @@ const Visualizer = ({
   return (
     <div className='visualizer'>
       <div className='visualizer-controls'>
-        <button onClick={() => setIndex(i => Math.max(0, i - 1))}>Prev</button>
+        <button onClick={() => setIndex(i => Math.max(-1, i - 1))}>Prev</button>
         <button onClick={() => setPlaying(v => !v)}>
           {playing ? "Pause" : "Play"}
         </button>
         <button onClick={() => setIndex(i => Math.min(frames.length - 1, i + 1))}>Next</button>
+        <button onClick={() => {
+          setIndex(-1);
+          setPlaying(true);
+        }}>Restart</button>
 
         <select value={speed}
         onChange={e => setSpeed(Number(e.target.value))}
@@ -73,6 +77,7 @@ const Visualizer = ({
       <div className='visualizer-state'>
         <AlgorithmRenderer
           frame={frame}
+          previousFrame={frames[index - 1]}
           frameIndex={index}
           totalFrames={frames.length}
         />

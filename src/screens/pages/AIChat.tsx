@@ -5,7 +5,7 @@ import "./AIChat.css";
 import Sidebar from "../../components/ui/sidebar";
 import { extractCodeBlocks } from "../../components/chat-page-workspace/codeParser";
 import ALWorkspace from "../../components/chat-page-workspace/ALWorkspace";
-import { MOCK_AI_RESPONSE } from "../../components/chat-page-workspace/mockResponse";
+import { getRandomMockResponse } from "../../components/chat-page-workspace/mockResponse";
 import {
   fetchCurrentUser,
   fetchReply as fetchChatReply,
@@ -427,7 +427,8 @@ export default function AIChat() {
   const handleMockAI = () => {
     setIsTyping(true);
     setTimeout(() => {
-      const parsed = extractCodeBlocks(MOCK_AI_RESPONSE);
+      const mockResponse = getRandomMockResponse();
+      const parsed = extractCodeBlocks(mockResponse);
       setMessages(prev => [
         ...prev,
         {
@@ -539,7 +540,7 @@ export default function AIChat() {
               </div>
             ) : (
               <>
-                <div className="ai-feed" style={{ flex: 1, overflowY: "auto", padding: "80px clamp(24px, 8%, 20%) 120px" }}>
+                <div className="ai-feed" style={{ flex: 1, overflowY: "auto", padding: "80px clamp(24px, 8%, 20%) 20px" }}>
                   {messages.map(msg => (
                     <div key={msg.id} className="ai-msg-row" style={{ 
                       display: "flex",
@@ -595,7 +596,7 @@ export default function AIChat() {
                               fontWeight: "500"
                             }}
                           >
-                            {snippet.filename.includes('linear search') ? 'Brute-force linear search in Java' : snippet.filename}
+                            {snippet.filename}
                           </button>
                         ))}
 
@@ -636,7 +637,8 @@ export default function AIChat() {
                   <div ref={bottomRef} />
                 </div>
 
-                <div className="ai-bottom-bar" style={{ position: "absolute", bottom: "30px", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 48px)", maxWidth: "700px" }}>
+                <div className="ai-bottom-bar">
+                  <div style={{ width: "calc(100% - 48px)", maxWidth: "700px" }}>
                   <InputBox
                     textareaRef={textareaRef}
                     fileInputRef={fileInputRef}
@@ -653,6 +655,7 @@ export default function AIChat() {
                     canAttachFiles={!isGuest}
                     onRequireLogin={() => setShowGuestAttachmentModal(true)}
                   />
+                  </div>
                 </div>
               </>
             )}
