@@ -22,28 +22,34 @@ export type FetchReplyOptions = {
 const DEFAULT_MAX_TOKENS = 512;
 const DEFAULT_TEMPERATURE = 0.7;
 
-export async function fetchReply(history: OpenAIMessage[], options: FetchReplyOptions): Promise<string> {
-  const response = await fetch(apiUrl("/api/chat"), {
+// chat.ts
+export async function fetchReply(
+  history: OpenAIMessage[],
+  _options: FetchReplyOptions
+): Promise<string> {
+  const lastMessage = history[history.length - 1];
+  const userContent = lastMessage?.content ?? "";
+
+  const res = await fetch(apiUrl("/api/chat/anonymous/send"), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${options.apiKey}`,
-    },
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: options.model,
-      messages: [{ role: "system", content: options.systemPrompt }, ...history],
-      max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
-      temperature: options.temperature ?? DEFAULT_TEMPERATURE,
+      content: userContent,
+      history: history
+        .slice(0, -1)
+        .filter(m => m.role === "user" || m.role === "assistant")
+        .map(m => ({ role: m.role === "assistant" ? "AI" : "USER", content: m.content })),
     }),
   });
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message || `API error ${response.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any)?.message || `API error ${res.status}`);
   }
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() ?? "No response received.";
+  const data = await res.json();
+  return data.content ?? "No response received.";
 }
 
 export async function fetchChatHistory(): Promise<ChatHistoryItem[]> {
