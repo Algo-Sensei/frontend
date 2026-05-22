@@ -56,6 +56,9 @@ const extractScene = (frame?: ExecutionFrame, previousFrame?: ExecutionFrame) =>
 const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: AlgorithmRendererProps) => {
   const scene = extractScene(frame, previousFrame);
   const hasCanvasItems = scene.variableEntries.length > 0 || scene.arrayEntries.length > 0;
+  const printOutput = (frame?.output?.length ?? 0) > (previousFrame?.output?.length ?? 0) 
+    ? frame?.output?.[frame.output.length - 1] 
+    : null;
 
   return (
     <div className="algo-renderer">
@@ -73,7 +76,28 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
           </div>
         </div>
 
-        <div className={`algo-renderer-canvas${hasCanvasItems ? "" : " blank"}`}>
+        <div className={`algo-renderer-canvas${hasCanvasItems ? "" : " blank"}`} style={{ position: "relative" }}>
+          {printOutput && (
+            <div className="algo-renderer-print-bubble" style={{
+              position: "absolute",
+              top: "20px",
+              right: "20px",
+              background: "#e24e40",
+              color: "white",
+              padding: "8px 16px",
+              borderRadius: "20px",
+              boxShadow: "0 4px 12px rgba(226, 78, 64, 0.4)",
+              zIndex: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontWeight: 500,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <span>{printOutput}</span>
+            </div>
+          )}
+
           {scene.variableEntries.map(([name, value]) => {
             const changed = scene.changedVariables.has(name);
 
