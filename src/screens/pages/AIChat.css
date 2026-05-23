@@ -7,11 +7,6 @@
 }
 
 .ai-root {
-  position: absolute;
-  top: 0;
-  left: 56px;  
-  right: 0;
-  bottom: 0;
   background: #242424;
   font-family: 'Inter', system-ui, sans-serif;
   color: #f0ede8;
@@ -68,10 +63,6 @@
 .ai-guest-signin-btn:hover {
 }
 
-.ai-root.ai-root-guest {
-  left: 0;
-}
-
 .ai-split-layout {
   flex: 1;
   min-height: 0;
@@ -98,6 +89,20 @@
   display: flex;
   flex-direction: column;
   border-radius: 10px 0 0 10px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ai-chat-pane.ai-chat-floating {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  width: 350px;
+  height: 500px;
+  z-index: 100;
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: rgba(36, 36, 36, 0.95);
+  backdrop-filter: blur(10px);
 }
 
 .ai-workspace-pane {

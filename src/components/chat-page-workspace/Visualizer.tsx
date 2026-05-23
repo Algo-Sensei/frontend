@@ -72,6 +72,23 @@ const Visualizer = ({
           <option value={800}>Normal</option>
           <option value={300}>Fast</option>
         </select>
+
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '10px' }}>
+          <input 
+            type="range" 
+            min={-1} 
+            max={Math.max(0, frames.length - 1)} 
+            value={index} 
+            onChange={(e) => {
+              setIndex(Number(e.target.value));
+              setPlaying(false);
+            }} 
+            style={{ flex: 1, cursor: 'pointer', accentColor: '#e24e40' }}
+          />
+          <span style={{ fontSize: '13px', color: '#f4eee9', whiteSpace: 'nowrap', minWidth: '80px' }}>
+            Frame {Math.min(Math.max(0, index + 1), frames.length)} / {frames.length}
+          </span>
+        </div>
       </div>
 
       <div className='visualizer-state'>
