@@ -101,6 +101,7 @@ const InputBox = ({
   uploading,
   canAttachFiles,
   onRequireLogin,
+  textLength,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -116,6 +117,7 @@ const InputBox = ({
   uploading: boolean;
   canAttachFiles: boolean;
   onRequireLogin: () => void;
+  textLength: number;
 }) => (
   <div className="ai-input-card" style={{ width: '100%', background: '#2e2e2e', borderRadius: '16px', border: '1px solid #3a3a3a', padding: '12px' }}>
     {/* file preview strip */}
@@ -137,7 +139,7 @@ const InputBox = ({
         onInput={onInput}
         placeholder="Ask me about algorithms, data structures, complexity..."
         rows={1}
-        maxLength={500}
+        maxLength={5000}
         className="ai-textarea"
         disabled={isTyping || uploading}
         style={{ flex: 1, background: 'none', border: 'none', color: '#fff', fontSize: '16px', resize: 'none' }}
@@ -150,6 +152,10 @@ const InputBox = ({
       >
         <IconSend />
       </button>
+    </div>
+    
+    <div style={{ textAlign: "right", fontSize: "12px", color: "#888", marginTop: "4px", paddingRight: "36px" }}>
+      {textLength}/5000
     </div>
     
     <div className="ai-divider" style={{ height: '1px', background: '#3a3a3a', margin: '12px 0' }} />
@@ -208,6 +214,7 @@ export default function AIChat() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [textLength, setTextLength] = useState(0);
   const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -260,6 +267,37 @@ export default function AIChat() {
     };
   }, [allowsGuestMode, navigate]);
 
+  // Load chat history from local storage when user is available
+  useEffect(() => {
+    if (!authChecked) return;
+    if (user) {
+      const stored = localStorage.getItem("algosensei_chat_" + (user.userID || user.email || "default"));
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setMessages(parsed.messages || []);
+          historyRef.current = parsed.history || [];
+        } catch (e) {
+          console.error("Failed to parse chat history");
+        }
+      }
+    } else {
+      // Clear for guests
+      setMessages([]);
+      historyRef.current = [];
+    }
+  }, [user, authChecked]);
+
+  // Save chat history to local storage when messages change
+  useEffect(() => {
+    if (user && authChecked) {
+      localStorage.setItem("algosensei_chat_" + (user.userID || user.email || "default"), JSON.stringify({
+        messages,
+        history: historyRef.current
+      }));
+    }
+  }, [messages, user, authChecked]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
@@ -285,6 +323,7 @@ export default function AIChat() {
     el.style.height = "auto";
     el.style.overflowY = "hidden";
     setCanSend(false);
+    setTextLength(0);
   };
 
   const handleNewChat = () => {
@@ -450,6 +489,7 @@ export default function AIChat() {
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
     el.style.overflowY = el.scrollHeight > 200 ? "auto" : "hidden";
     setCanSend(el.value.trim().length > 0 || preview !== null);
+    setTextLength(el.value.length);
   };
 
   if (!authChecked) {
@@ -535,6 +575,7 @@ export default function AIChat() {
                     uploading={uploading}
                     canAttachFiles={!isGuest}
                     onRequireLogin={() => setShowGuestAttachmentModal(true)}
+                    textLength={textLength}
                   />
                 </div>
                 {error && <p className="ai-error-text">{error}</p>}
@@ -715,6 +756,7 @@ export default function AIChat() {
                     uploading={uploading}
                     canAttachFiles={!isGuest}
                     onRequireLogin={() => setShowGuestAttachmentModal(true)}
+                    textLength={textLength}
                   />
                   </div>
                 </div>
