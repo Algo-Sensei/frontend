@@ -1,5 +1,4 @@
 import { CodeArtifact } from "./types";
-import ReactMarkdown from 'react-markdown';
 
 // codeParser.ts
 export function extractCodeBlocks(text: string): {
