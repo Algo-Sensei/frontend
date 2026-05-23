@@ -262,6 +262,8 @@ const renderHighlightedLine = (tokens: SyntaxToken[], lineNumber: number): React
 const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [currentFrame, setCurrentFrame] = useState<ExecutionFrame | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
+  const [traceExpanded, setTraceExpanded] = useState(false);
 
   const codeLines = code.code.split("\n");
   const highlightedCodeLines = tokenizeCode(codeLines);
@@ -269,6 +271,17 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
   const outputText = currentFrame?.output?.length
     ? currentFrame.output[currentFrame.output.length - 1]
     : code.output || "";
+  const traceSectionClassName = `workspace-section workspace-code-section${traceExpanded ? " expanded" : ""}`;
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code.code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   return (
     <div
@@ -393,7 +406,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
         )}
 
         <section
-          className="workspace-section"
+          className={traceSectionClassName}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -429,17 +442,48 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
             }}
           >
             <span>{fileName}</span>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <polyline points="9 21 3 21 3 15"></polyline>
-                <line x1="21" y1="3" x2="14" y2="10"></line>
-                <line x1="3" y1="21" x2="10" y2="14"></line>
-              </svg>
+            <div className="workspace-code-toolbar">
+              <button
+                className="workspace-icon-button"
+                type="button"
+                onClick={handleCopyCode}
+                aria-label="Copy code"
+                title="Copy code"
+              >
+                {copied ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                )}
+              </button>
+              <button
+                className="workspace-icon-button"
+                type="button"
+                onClick={() => setTraceExpanded((value) => !value)}
+                aria-label={traceExpanded ? "Exit full code trace" : "Expand code trace"}
+                title={traceExpanded ? "Exit full" : "Expand full"}
+              >
+                {traceExpanded ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 14 10 14 10 20" />
+                    <polyline points="20 10 14 10 14 4" />
+                    <line x1="14" y1="10" x2="21" y2="3" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9" />
+                    <polyline points="9 21 3 21 3 15" />
+                    <line x1="21" y1="3" x2="14" y2="10" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                )}
+              </button>
             </div>
           </div>
 
