@@ -27,17 +27,47 @@ const extractScene = (frame?: ExecutionFrame, previousFrame?: ExecutionFrame) =>
   const arrayEntries = Object.entries(frame?.heap?.arrays ?? {}).filter(([, value]) =>
     Array.isArray(value)
   );
+  const stackEntries = Object.entries(frame?.heap?.stack ?? {}).filter(([, value]) =>
+    Array.isArray(value)
+  );
+  const queueEntries = Object.entries(frame?.heap?.queues ?? {}).filter(([, value]) =>
+    Array.isArray(value)
+  );
   const variableEntries = Object.entries(frame?.variables ?? {});
-  const changedVariables = new Set(
-    variableEntries
-      .filter(([name, value]) => !valuesAreEqual(value, previousFrame?.variables?.[name]))
-      .map(([name]) => name)
-  );
-  const changedArrays = new Set(
-    arrayEntries
-      .filter(([name, value]) => !valuesAreEqual(value, previousFrame?.heap?.arrays?.[name]))
-      .map(([name]) => name)
-  );
+  const changedVariables = new Set<string>();
+  const changedArrays = new Set<string>();
+  const changedStacks = new Set<string>();
+  const changedQueues = new Set<string>();
+  const swappedIndices = new Map<string, [number, number]>();
+  const changedIndices = new Map<string, Set<number>>();
+
+  if (frame?.operations && frame.operations.length > 0) {
+    frame.operations.forEach(op => {
+      if (op.type === 'assign') changedVariables.add(op.target);
+      if (op.type === 'array_update') {
+        changedArrays.add(op.target);
+        if (!changedIndices.has(op.target)) changedIndices.set(op.target, new Set());
+        changedIndices.get(op.target)!.add(op.index);
+      }
+      if (op.type === 'swap') {
+        changedArrays.add(op.target);
+        swappedIndices.set(op.target, op.indices);
+        if (!changedIndices.has(op.target)) changedIndices.set(op.target, new Set());
+        changedIndices.get(op.target)!.add(op.indices[0]);
+        changedIndices.get(op.target)!.add(op.indices[1]);
+      }
+      if (op.type === 'method') {
+        if (frame?.heap?.stack?.[op.target]) changedStacks.add(op.target);
+        if (frame?.heap?.queues?.[op.target]) changedQueues.add(op.target);
+        if (frame?.heap?.arrays?.[op.target]) changedArrays.add(op.target);
+      }
+    });
+  } else {
+    variableEntries.filter(([name, value]) => !valuesAreEqual(value, previousFrame?.variables?.[name])).forEach(([name]) => changedVariables.add(name));
+    arrayEntries.filter(([name, value]) => !valuesAreEqual(value, previousFrame?.heap?.arrays?.[name])).forEach(([name]) => changedArrays.add(name));
+    stackEntries.filter(([name, value]) => !valuesAreEqual(value, previousFrame?.heap?.stack?.[name])).forEach(([name]) => changedStacks.add(name));
+    queueEntries.filter(([name, value]) => !valuesAreEqual(value, previousFrame?.heap?.queues?.[name])).forEach(([name]) => changedQueues.add(name));
+  }
 
   const iterator = typeof frame?.variables?.i === "number" ? frame.variables.i : null;
   const foundIndex =
@@ -45,17 +75,23 @@ const extractScene = (frame?: ExecutionFrame, previousFrame?: ExecutionFrame) =>
 
   return {
     arrayEntries,
+    stackEntries,
+    queueEntries,
     iterator,
     foundIndex,
     variableEntries,
     changedVariables,
     changedArrays,
+    changedStacks,
+    changedQueues,
+    swappedIndices,
+    changedIndices,
   };
 };
 
 const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: AlgorithmRendererProps) => {
   const scene = extractScene(frame, previousFrame);
-  const hasCanvasItems = scene.variableEntries.length > 0 || scene.arrayEntries.length > 0;
+  const hasCanvasItems = scene.variableEntries.length > 0 || scene.arrayEntries.length > 0 || scene.stackEntries.length > 0 || scene.queueEntries.length > 0;
   const printOutput = (frame?.output?.length ?? 0) > (previousFrame?.output?.length ?? 0) 
     ? frame?.output?.[frame.output.length - 1] 
     : null;
@@ -103,7 +139,7 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
 
             return (
               <div
-                className={`algo-renderer-variable-card${changed ? " changed" : ""}`}
+                className={`algo-renderer-variable-card${changed ? " changed algo-animate-pulse" : ""}`}
                 key={name}
               >
                 <span className="algo-renderer-chip-label">{name}</span>
@@ -117,30 +153,142 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
           {scene.arrayEntries.map(([name, values]) => {
             const changed = scene.changedArrays.has(name);
             const previousValues = previousFrame?.heap?.arrays?.[name] ?? [];
+            const isNumericArray = values.length > 0 && values.every((v) => typeof v === "number");
+            const maxValue = isNumericArray ? Math.max(...(values as number[]), 1) : 1;
 
             return (
               <div
-                className={`algo-renderer-array-card${changed ? " changed" : ""}`}
+                className={`algo-renderer-array-card${changed ? " changed algo-animate-glow" : ""}`}
                 key={name}
               >
                 <div className="algo-renderer-array-title">{name}</div>
-                <div className="algo-renderer-array-shell">
-                  {values.map((value, index) => {
-                    const isActive = scene.iterator === index;
-                    const isFound = scene.foundIndex === index;
-                    const cellChanged = !valuesAreEqual(value, previousValues[index]);
+                {isNumericArray ? (
+                  <div className="algo-renderer-bar-chart">
+                    {values.map((value, index) => {
+                      const jVar = frame?.variables?.j;
+                      const isActive = index === scene.iterator || index === scene.foundIndex || index === jVar || (typeof jVar === "number" && index === jVar + 1);
+                      const isFound = index === scene.foundIndex;
+                      
+                      let cellChanged = false;
+                      let isSwapped = false;
+                      if (frame?.operations && frame.operations.length > 0) {
+                          cellChanged = scene.changedIndices.get(name)?.has(index) ?? false;
+                          isSwapped = scene.swappedIndices.get(name)?.includes(index) ?? false;
+                      } else {
+                          cellChanged = !valuesAreEqual(value, previousValues[index]) || index >= previousValues.length;
+                      }
 
-                    return (
-                      <div className="algo-renderer-array-cell" key={`${name}-${index}`}>
-                        <span className="algo-renderer-index-tag">{index}</span>
-                        <div
-                          className={`algo-renderer-array-item${isActive ? " active" : ""}${isFound ? " found" : ""}${cellChanged ? " changed" : ""}`}
+                      const heightPercent = Math.max((value / maxValue) * 100, 5);
+
+                      let swapStyle = {};
+                      let swapClass = "";
+                      if (isSwapped) {
+                         const [idx1, idx2] = scene.swappedIndices.get(name)!;
+                         const fromIndex = index === idx1 ? idx2 : idx1;
+                         const diff = fromIndex - index;
+                         // The bar width is approx 30px (24px + 6px gap).
+                         swapStyle = { "--swap-offset": `${diff * 30}px` };
+                         swapClass = " algo-animate-swap";
+                      }
+
+                      return (
+                        <div 
+                          className={`algo-renderer-bar-container${swapClass}`} 
+                          key={`${name}-${index}`}
+                          style={swapStyle as React.CSSProperties}
                         >
+                          <div 
+                            className={`algo-renderer-bar${isActive ? " active" : ""}${isFound ? " found" : ""}${cellChanged ? " changed" : ""}`}
+                            style={{ height: `${heightPercent}%` }}
+                          />
+                          <span className="algo-renderer-bar-label">{formatValue(value)}</span>
+                          <span className="algo-renderer-bar-index">{index}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="algo-renderer-array-shell">
+                    {values.map((value, index) => {
+                      const isActive = index === scene.iterator || index === scene.foundIndex || index === frame?.variables?.j;
+                      const isFound = index === scene.foundIndex;
+                      
+                      let cellChanged = false;
+                      if (frame?.operations && frame.operations.length > 0) {
+                          cellChanged = scene.changedIndices.get(name)?.has(index) ?? false;
+                      } else {
+                          cellChanged = !valuesAreEqual(value, previousValues[index]) || index >= previousValues.length;
+                      }
+
+                      return (
+                        <div className="algo-renderer-array-cell" key={`${name}-${index}`}>
+                          <span className="algo-renderer-index-tag">{index}</span>
+                          <div
+                            className={`algo-renderer-array-item${isActive ? " active" : ""}${isFound ? " found" : ""}${cellChanged ? " changed algo-animate-scale" : ""}`}
+                          >
+                            {formatValue(value)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {scene.stackEntries.map(([name, values]) => {
+            const changed = scene.changedStacks.has(name);
+            const previousValues = previousFrame?.heap?.stack?.[name] ?? [];
+
+            return (
+              <div
+                className={`algo-renderer-stack-card${changed ? " algo-animate-glow" : ""}`}
+                key={name}
+              >
+                <div className="algo-renderer-array-title">{name}</div>
+                <div className="algo-renderer-stack-shell">
+                  {values.map((value, index) => {
+                    const isTop = index === values.length - 1;
+                    const cellChanged = !valuesAreEqual(value, previousValues[index]) || index >= previousValues.length;
+                    return (
+                      <div className="algo-renderer-stack-row" key={`${name}-${index}`}>
+                        <div className={`algo-renderer-stack-item${cellChanged ? " algo-animate-scale" : ""}`}>
                           {formatValue(value)}
                         </div>
+                        {isTop && <span className="algo-renderer-stack-top-indicator">&lt;- top</span>}
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            );
+          })}
+
+          {scene.queueEntries.map(([name, values]) => {
+            const changed = scene.changedQueues.has(name);
+            const previousValues = previousFrame?.heap?.queues?.[name] ?? [];
+
+            return (
+              <div
+                className={`algo-renderer-queue-card${changed ? " algo-animate-glow" : ""}`}
+                key={name}
+              >
+                <div className="algo-renderer-array-title">{name}</div>
+                <div className="algo-renderer-queue-shell">
+                  <span className="algo-renderer-queue-indicator">Front -&gt;</span>
+                  {values.map((value, index) => {
+                    const cellChanged = !valuesAreEqual(value, previousValues[index]) || index >= previousValues.length;
+                    return (
+                      <div
+                        className={`algo-renderer-queue-item${cellChanged ? " algo-animate-scale" : ""}`}
+                        key={`${name}-${index}`}
+                      >
+                        {formatValue(value)}
+                      </div>
+                    );
+                  })}
+                  <span className="algo-renderer-queue-indicator">&lt;- Rear</span>
                 </div>
               </div>
             );
@@ -169,6 +317,40 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
           </div>
         </div>
       </div>
+      
+      {frame?.stats && (
+        <div className="algo-renderer-dashboard" style={{ marginTop: "16px" }}>
+          <div className="algo-renderer-complexity-panel">
+             <div className="algo-renderer-complexity-header">Complexity Analysis</div>
+             <div className="algo-renderer-complexity-grid">
+                 <div className="complexity-item">
+                     <span className="complexity-label">Time Complexity</span>
+                     <strong className="complexity-value highlight">{frame.stats.timeComplexity}</strong>
+                 </div>
+                 <div className="complexity-item">
+                     <span className="complexity-label">Space Complexity</span>
+                     <strong className="complexity-value">{frame.stats.spaceComplexity}</strong>
+                 </div>
+                 <div className="complexity-item">
+                     <span className="complexity-label">Comparisons</span>
+                     <strong className="complexity-value">{frame.stats.comparisons}</strong>
+                 </div>
+                 <div className="complexity-item">
+                     <span className="complexity-label">Swaps</span>
+                     <strong className="complexity-value">{frame.stats.swaps}</strong>
+                 </div>
+                 <div className="complexity-item">
+                     <span className="complexity-label">Array Accesses</span>
+                     <strong className="complexity-value">{frame.stats.arrayAccesses}</strong>
+                 </div>
+                 <div className="complexity-item">
+                     <span className="complexity-label">Iterations</span>
+                     <strong className="complexity-value">{frame.stats.iterations}</strong>
+                 </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

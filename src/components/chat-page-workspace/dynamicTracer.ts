@@ -1,3 +1,18 @@
+export type Operation = 
+  | { type: 'assign', target: string, value: any }
+  | { type: 'array_update', target: string, index: number, value: any }
+  | { type: 'swap', target: string, indices: [number, number] }
+  | { type: 'method', target: string, method: string, args: any[] };
+
+export type ExecutionStats = {
+    iterations: number;
+    comparisons: number;
+    swaps: number;
+    arrayAccesses: number;
+    timeComplexity: string;
+    spaceComplexity: string;
+};
+
 export type ExecutionFrame = {
     line: number;
     variables: Record<string, any>;
@@ -8,11 +23,15 @@ export type ExecutionFrame = {
     };
     output: string[];
     note?: string;
+    operations?: Operation[];
+    stats?: ExecutionStats;
 };
 
 type RuntimeState = {
     variables: Record<string, any>;
     arrays: Record<string, any[]>;
+    stack: Record<string, any[]>;
+    queues: Record<string, any[]>;
     output: string[];
 };
 
@@ -20,6 +39,8 @@ const cloneState = (state: RuntimeState): RuntimeState => {
     return {
         variables: JSON.parse(JSON.stringify(state.variables)),
         arrays: JSON.parse(JSON.stringify(state.arrays)),
+        stack: JSON.parse(JSON.stringify(state.stack)),
+        queues: JSON.parse(JSON.stringify(state.queues)),
         output: [...state.output],
     };
 };
@@ -28,7 +49,9 @@ const createFrame = (
     frames: ExecutionFrame[],
     state: RuntimeState,
     line: number,
-    note?: string
+    note?: string,
+    operations?: Operation[],
+    stats?: ExecutionStats
 ) => {
     const snapshot = cloneState(state);
     frames.push({
@@ -36,26 +59,42 @@ const createFrame = (
         variables: snapshot.variables,
         heap: {
             arrays: snapshot.arrays,
+            stack: snapshot.stack,
+            queues: snapshot.queues,
         },
         output: snapshot.output,
         note,
+        operations: operations ? [...operations] : [],
+        stats: stats ? { ...stats } : undefined,
     });
 };
 
-const evaluateExpression = (expr: string, state: RuntimeState): any => {
+const evaluateExpression = (expr: string, state: RuntimeState, returnError = false): any => {
     const varNames = Object.keys(state.variables);
     const varValues = Object.values(state.variables);
     const arrNames = Object.keys(state.arrays);
     const arrValues = Object.values(state.arrays);
+    const stackNames = Object.keys(state.stack);
+    const stackValues = Object.values(state.stack);
+    const queueNames = Object.keys(state.queues);
+    const queueValues = Object.values(state.queues);
 
     try {
         const trimmedExpr = expr.trim();
-        if (!trimmedExpr) return null;
-        let jsExpr = trimmedExpr.replace(/System\.out\.println/g, 'console.log');
-        const fn = new Function(...varNames, ...arrNames, `return ${jsExpr};`);
-        return fn(...varValues, ...arrValues);
+        if (!trimmedExpr) return "";
+        let jsExpr = trimmedExpr
+            .replace(/System\.out\.println/g, 'console.log')
+            .replace(/\.offer\(/g, '.push(')
+            .replace(/\.add\(/g, '.push(')
+            .replace(/\.poll\(\)/g, '.shift()')
+            .replace(/\.remove\(\)/g, '.shift()')
+            .replace(/Arrays\.toString\((.*?)\)/g, 'JSON.stringify($1)')
+            .replace(/Arrays\.deepToString\((.*?)\)/g, 'JSON.stringify($1)');
+        const fn = new Function(...varNames, ...arrNames, ...stackNames, ...queueNames, `return ${jsExpr};`);
+        return fn(...varValues, ...arrValues, ...stackValues, ...queueValues);
     } catch (e) {
         console.warn("Evaluation failed for:", expr, e);
+        if (returnError) return { __error: true, expr };
         return null;
     }
 };
@@ -65,7 +104,25 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
     const state: RuntimeState = {
         variables: {},
         arrays: {},
+        stack: {},
+        queues: {},
         output: [],
+    };
+
+    const stats: ExecutionStats = {
+        iterations: 0,
+        comparisons: 0,
+        swaps: 0,
+        arrayAccesses: 0,
+        timeComplexity: "O(1)",
+        spaceComplexity: "O(1)",
+    };
+
+    const countArrayAccesses = (expr: string) => {
+        const matches = expr.match(/\w+\[.*?\]/g);
+        if (matches) {
+            stats.arrayAccesses += matches.length;
+        }
     };
 
     const lines = code.split("\n");
@@ -88,6 +145,8 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
     let skipUntil: number | null = null;
     let maxSteps = 2000;
     let steps = 0;
+    let maxLoopDepth = 0;
+    let maxArraySize = 0;
 
     while (pc < lines.length && steps++ < maxSteps) {
         const rawLine = lines[pc];
@@ -127,8 +186,11 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
                     }
                 }
                 
+                countArrayAccesses(currentLoop.condition);
+                stats.comparisons++;
                 const cond = evaluateExpression(currentLoop.condition, state);
                 if (cond) {
+                    stats.iterations++;
                     pc = currentLoop.start + 1;
                     continue;
                 } else {
@@ -153,8 +215,9 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         let match = line.match(/^(?:int|double|float|String|boolean|char)\s+(\w+)\s*=\s*(.+);/);
         if (match) {
             const [, name, expr] = match;
+            countArrayAccesses(expr);
             state.variables[name] = evaluateExpression(expr, state);
-            createFrame(frames, state, pc, `Declared ${name} = ${state.variables[name]}`);
+            createFrame(frames, state, pc, `The variable '${name}' is initialized with the value ${state.variables[name]}.`, [{ type: 'assign', target: name, value: state.variables[name] }], stats);
             pc++;
             continue;
         }
@@ -164,7 +227,7 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         if (match) {
             const [, name] = match;
             state.variables[name] = 0;
-            createFrame(frames, state, pc, `Declared ${name}`);
+            createFrame(frames, state, pc, `The variable '${name}' is declared.`, undefined, stats);
             pc++;
             continue;
         }
@@ -175,7 +238,8 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
             const [, name, els] = match;
             const elements = els.split(",").map(e => evaluateExpression(e.trim(), state));
             state.arrays[name] = elements;
-            createFrame(frames, state, pc, `Created array ${name} with ${elements.length} elements`);
+            maxArraySize = Math.max(maxArraySize, elements.length);
+            createFrame(frames, state, pc, `The array '${name}' is created with ${elements.length} elements: [${elements.join(', ')}].`, undefined, stats);
             pc++;
             continue;
         }
@@ -186,7 +250,28 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
             const [, name, sizeExpr] = match;
             const size = evaluateExpression(sizeExpr, state);
             state.arrays[name] = new Array(size).fill(0);
-            createFrame(frames, state, pc, `Allocated array ${name} of size ${size}`);
+            maxArraySize = Math.max(maxArraySize, size);
+            createFrame(frames, state, pc, `The array '${name}' is allocated in memory with size ${size}.`, undefined, stats);
+            pc++;
+            continue;
+        }
+
+        // Stack Declaration
+        match = line.match(/^Stack<(.*?)>\s+(\w+)\s*=\s*new\s+Stack<.*?>\(\);/);
+        if (match) {
+            const [, type, name] = match;
+            state.stack[name] = [];
+            createFrame(frames, state, pc, `A new Stack named '${name}' is allocated in memory.`, undefined, stats);
+            pc++;
+            continue;
+        }
+
+        // Queue Declaration
+        match = line.match(/^Queue<(.*?)>\s+(\w+)\s*=\s*new\s+(?:LinkedList|PriorityQueue|ArrayDeque)<.*?>\(\);/);
+        if (match) {
+            const [, type, name] = match;
+            state.queues[name] = [];
+            createFrame(frames, state, pc, `A new Queue named '${name}' is allocated in memory.`, undefined, stats);
             pc++;
             continue;
         }
@@ -196,8 +281,9 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         if (match) {
             const [, name, expr] = match;
             if (state.variables[name] !== undefined) {
+                countArrayAccesses(expr);
                 state.variables[name] = evaluateExpression(expr, state);
-                createFrame(frames, state, pc, `Assigned ${name} = ${state.variables[name]}`);
+                createFrame(frames, state, pc, `The variable '${name}' is assigned a new value: ${state.variables[name]}.`, [{ type: 'assign', target: name, value: state.variables[name] }], stats);
             }
             pc++;
             continue;
@@ -207,11 +293,14 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         match = line.match(/^(\w+)\[(.*?)\]\s*=\s*(.+);/);
         if (match) {
             const [, name, idxExpr, valExpr] = match;
+            countArrayAccesses(idxExpr);
+            countArrayAccesses(valExpr);
+            stats.arrayAccesses++; // The assignment itself is an access
             const idx = evaluateExpression(idxExpr, state);
             const val = evaluateExpression(valExpr, state);
             if (state.arrays[name]) {
                 state.arrays[name][idx] = val;
-                createFrame(frames, state, pc, `Assigned ${name}[${idx}] = ${val}`);
+                createFrame(frames, state, pc, `Index ${idx} of array '${name}' is updated to store the value ${val}.`, [{ type: 'array_update', target: name, index: idx, value: val }], stats);
             }
             pc++;
             continue;
@@ -223,7 +312,7 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
             const [, name] = match;
             if (state.variables[name] !== undefined) {
                 state.variables[name]++;
-                createFrame(frames, state, pc, `Incremented ${name}`);
+                createFrame(frames, state, pc, `The variable '${name}' is incremented by 1 (now ${state.variables[name]}).`, [{ type: 'assign', target: name, value: state.variables[name] }], stats);
             }
             pc++;
             continue;
@@ -233,19 +322,36 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
             const [, name] = match;
             if (state.variables[name] !== undefined) {
                 state.variables[name]--;
-                createFrame(frames, state, pc, `Decremented ${name}`);
+                createFrame(frames, state, pc, `The variable '${name}' is decremented by 1 (now ${state.variables[name]}).`, [{ type: 'assign', target: name, value: state.variables[name] }], stats);
             }
             pc++;
             continue;
+        }
+
+        // Standalone Method Calls (e.g. Stack/Queue operations)
+        match = line.match(/^(\w+)\.(push|pop|add|offer|poll|remove)\((.*)\);/);
+        if (match) {
+            const [, name, method, args] = match;
+            if (state.stack[name] || state.queues[name] || state.arrays[name]) {
+                countArrayAccesses(args);
+                evaluateExpression(`${name}.${method}(${args})`, state);
+                createFrame(frames, state, pc, `Called the method '${method}' on '${name}' with arguments: ${args}.`, [{ type: 'method', target: name, method, args: [args] }], stats);
+                pc++;
+                continue;
+            }
         }
 
         // Print statement
         match = line.match(/^System\.out\.print(?:ln)?\((.*)\);/);
         if (match) {
             const [, expr] = match;
-            let outputVal = evaluateExpression(expr, state);
+            countArrayAccesses(expr);
+            let outputVal = evaluateExpression(expr, state, true);
+            if (outputVal && typeof outputVal === 'object' && outputVal.__error) {
+                outputVal = expr.trim();
+            }
             state.output.push(String(outputVal));
-            createFrame(frames, state, pc, `Printed: ${outputVal}`);
+            createFrame(frames, state, pc, `Output printed to console: ${outputVal}.`, undefined, stats);
             pc++;
             continue;
         }
@@ -254,9 +360,11 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         match = line.match(/^if\s*\((.*)\)\s*\{/);
         if (match) {
             const [, condition] = match;
+            countArrayAccesses(condition);
+            stats.comparisons++;
             const condResult = evaluateExpression(condition, state);
             ifChainState.push({ resolved: condResult });
-            createFrame(frames, state, pc, `Condition (${condition}) is ${condResult}`);
+            createFrame(frames, state, pc, `Evaluating the 'if' condition (${condition})... it evaluates to ${condResult ? "true, so we enter the block" : "false, so we skip the block"}.`, undefined, stats);
             
             if (condResult) {
                 // Enter if block
@@ -277,9 +385,11 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
                 // Already resolved, skip this block
                 skipUntil = blocks[pc];
             } else {
+                countArrayAccesses(condition);
+                stats.comparisons++;
                 const condResult = evaluateExpression(condition, state);
                 if (currentChain) currentChain.resolved = condResult;
-                createFrame(frames, state, pc, `Else if condition (${condition}) is ${condResult}`);
+                createFrame(frames, state, pc, `Evaluating the 'else if' condition (${condition})... it evaluates to ${condResult ? "true, so we enter the block" : "false, so we skip the block"}.`, undefined, stats);
                 if (!condResult) {
                     skipUntil = blocks[pc];
                 }
@@ -296,7 +406,7 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
                 skipUntil = blocks[pc];
             } else {
                 if (currentChain) currentChain.resolved = true;
-                createFrame(frames, state, pc, `Entering else block`);
+                createFrame(frames, state, pc, `None of the previous conditions were true, so we enter the 'else' block.`, undefined, stats);
             }
             pc++;
             continue;
@@ -306,16 +416,20 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         match = line.match(/^while\s*\((.*)\)\s*\{/);
         if (match) {
             const [, condition] = match;
+            countArrayAccesses(condition);
+            stats.comparisons++;
             const condResult = evaluateExpression(condition, state);
-            createFrame(frames, state, pc, `While condition (${condition}) is ${condResult}`);
+            createFrame(frames, state, pc, `Checking the 'while' loop condition (${condition})... it's ${condResult ? "true, so we execute the loop body" : "false, so the loop terminates"}.`, undefined, stats);
 
             if (condResult) {
+                stats.iterations++;
                 loopContext.push({
                     start: pc,
                     end: blocks[pc],
                     update: "",
                     condition: condition
                 });
+                maxLoopDepth = Math.max(maxLoopDepth, loopContext.length);
             } else {
                 skipUntil = blocks[pc];
             }
@@ -331,20 +445,25 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
             let initMatch = init.match(/^(?:int|double|float|String|boolean|char)?\s*(\w+)\s*=\s*(.+)/);
             if (initMatch) {
                 const [, name, expr] = initMatch;
+                countArrayAccesses(expr);
                 state.variables[name] = evaluateExpression(expr, state);
-                createFrame(frames, state, pc, `For loop init: ${name} = ${state.variables[name]}`);
+                createFrame(frames, state, pc, `Initializing the 'for' loop: '${name}' is set to ${state.variables[name]}.`, undefined, stats);
             }
 
+            countArrayAccesses(condition);
+            stats.comparisons++;
             const condResult = evaluateExpression(condition, state);
-            createFrame(frames, state, pc, `For loop condition (${condition}) is ${condResult}`);
+            createFrame(frames, state, pc, `Checking the 'for' loop condition (${condition})... it's ${condResult ? "true, so we execute the loop body" : "false, so the loop terminates"}.`, undefined, stats);
 
             if (condResult) {
+                stats.iterations++;
                 loopContext.push({
                     start: pc,
                     end: blocks[pc],
                     update: update,
                     condition: condition
                 });
+                maxLoopDepth = Math.max(maxLoopDepth, loopContext.length);
             } else {
                 skipUntil = blocks[pc];
             }
@@ -356,7 +475,7 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         if (line === "break;") {
             const currentLoop = loopContext.pop();
             if (currentLoop) {
-                createFrame(frames, state, pc, `Break encountered. Exiting loop.`);
+                createFrame(frames, state, pc, `Encountered a 'break' statement. Immediately exiting the current loop.`, undefined, stats);
                 pc = currentLoop.end + 1;
                 continue;
             }
@@ -367,17 +486,63 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
         if (match) {
             const [, expr] = match;
             if (expr) {
-               createFrame(frames, state, pc, `Returned ${evaluateExpression(expr, state)}`);
+               countArrayAccesses(expr);
+               createFrame(frames, state, pc, `The method returns the value: ${evaluateExpression(expr, state)}.`, undefined, stats);
             } else {
-               createFrame(frames, state, pc, `Returned`);
+               createFrame(frames, state, pc, `The method returns and execution finishes.`, undefined, stats);
             }
             break;
         }
 
         // Fallback for unhandled executable lines (e.g., method calls)
-        createFrame(frames, state, pc, `Executed: ${line}`);
+        createFrame(frames, state, pc, `Executed statement: ${line}`, undefined, stats);
 
         pc++;
+    }
+
+    // Post-processing to detect swaps and calculate time/space complexity
+    let totalSwaps = 0;
+    let i = 0;
+    while (i < frames.length - 2) {
+        const f1 = frames[i];
+        const f2 = frames[i + 1];
+        const f3 = frames[i + 2];
+
+        const op1 = f1.operations?.[0];
+        const op2 = f2.operations?.[0];
+        const op3 = f3.operations?.[0];
+
+        if (
+            op1?.type === 'assign' &&
+            op2?.type === 'array_update' &&
+            op3?.type === 'array_update' &&
+            op2.target === op3.target
+        ) {
+            f3.operations = [{ type: 'swap', target: op2.target, indices: [op2.index, op3.index] }];
+            f3.note = `Swapped elements at indices ${op2.index} and ${op3.index} in array '${op2.target}'.`;
+            totalSwaps++;
+            i += 3;
+            continue;
+        }
+        i++;
+    }
+
+    // Determine final complexities
+    let tComplex = "O(1)";
+    if (maxLoopDepth === 1) tComplex = "O(n)";
+    if (maxLoopDepth === 2) tComplex = "O(n²)";
+    if (maxLoopDepth >= 3) tComplex = `O(n^${maxLoopDepth})`;
+
+    let sComplex = "O(1)";
+    if (maxArraySize > 0) sComplex = "O(n)";
+
+    // Update all frames with correct swap count and complexities
+    for (const frame of frames) {
+        if (frame.stats) {
+            frame.stats.swaps = totalSwaps;
+            frame.stats.timeComplexity = tComplex;
+            frame.stats.spaceComplexity = sComplex;
+        }
     }
 
     return frames;

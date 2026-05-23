@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
 import "./ALWorkspace.css";
 import Visualizer from "./Visualizer";
 import type { ExecutionFrame } from "./traceProgram";
@@ -259,18 +259,16 @@ const renderHighlightedLine = (tokens: SyntaxToken[], lineNumber: number): React
   ));
 };
 
-const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
+const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose, isFullScreen, onToggleFullScreen, onCloseVisualizer }: any) => {
   const [activeLine, setActiveLine] = useState<number | null>(null);
   const [currentFrame, setCurrentFrame] = useState<ExecutionFrame | undefined>(undefined);
   const [copied, setCopied] = useState(false);
   const [traceExpanded, setTraceExpanded] = useState(false);
+  const activeLineRef = useRef<HTMLDivElement | null>(null);
 
   const codeLines = code.code.split("\n");
   const highlightedCodeLines = tokenizeCode(codeLines);
   const fileName = code.filename || "Snippet.java";
-  const outputText = currentFrame?.output?.length
-    ? currentFrame.output[currentFrame.output.length - 1]
-    : code.output || "";
   const traceSectionClassName = `workspace-section workspace-code-section${traceExpanded ? " expanded" : ""}`;
 
   const handleCopyCode = async () => {
@@ -289,6 +287,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
       style={{
         height: "100%",
         display: "flex",
+        left: "56px",
         flexDirection: "column",
         background: "#1e1e1e",
         color: "#fff",
@@ -317,20 +316,49 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          {!showVisualizer && (
+            <button
+              onClick={onVisualize}
+              style={{
+                background: "linear-gradient(135deg, rgba(229, 77, 66, 0.85) 0%, rgba(112, 36, 30, 0.95) 100%)",
+                color: "#fff",
+                border: "1px solid rgba(229, 77, 66, 0.5)",
+                padding: "10px 16px",
+                borderRadius: "10px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                boxShadow: "0 10px 26px rgba(229, 77, 66, 0.18)",
+              }}
+              >
+              Visualize
+            </button>
+          )}
           <button
-            onClick={onVisualize}
+            onClick={onToggleFullScreen}
+            aria-label={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+            title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
             style={{
-              background: "linear-gradient(135deg, rgba(229, 77, 66, 0.85) 0%, rgba(112, 36, 30, 0.95) 100%)",
+              background: "#2a2a2a",
+              border: "1px solid #3a3a3a",
               color: "#fff",
-              border: "1px solid rgba(229, 77, 66, 0.5)",
-              padding: "10px 16px",
-              borderRadius: "10px",
+              width: "38px",
+              height: "38px",
+              borderRadius: "8px",
               cursor: "pointer",
-              fontWeight: "bold",
-              boxShadow: "0 10px 26px rgba(229, 77, 66, 0.18)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-            >
-            Visualize
+          >
+            {isFullScreen ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+              </svg>
+            )}
           </button>
           <button
             onClick={onClose}
@@ -364,59 +392,26 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
           overflowY: "auto",
           padding: "24px",
           display: "flex",
-          flexDirection: "column",
+          flexDirection: isFullScreen ? "row" : "column",
           alignItems: "center",
+          justifyContent: "center",
           gap: "24px",
         }}
       >
-        {showVisualizer && (
-          <section
-            className="workspace-section"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              width: "100%",
-              maxWidth: "700px",
-              border: "1px solid #323232",
-              borderRadius: "14px",
-              overflow: "hidden",
-              background: "#232323",
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                padding: "14px 16px",
-                borderBottom: "1px solid #343434",
-                fontWeight: "bold",
-                fontSize: "14px",
-              }}
-            >
-              Visualize
-            </div>
-
-            <div style={{ padding: "14px" }}>
-              <Visualizer
-                code={code.code}
-                onActiveLineChange={setActiveLine}
-                onFrameChange={setCurrentFrame}
-              />
-            </div>
-          </section>
-        )}
-
         <section
           className={traceSectionClassName}
           style={{
             display: "flex",
             flexDirection: "column",
+            flex: 1,
             width: "100%",
-            maxWidth: "700px",
+            maxWidth: isFullScreen ? "none" : "700px",
             border: "1px solid #323232",
             borderRadius: "14px",
             overflow: "hidden",
             background: "#232323",
             flexShrink: 0,
+            order: isFullScreen ? 1 : 2,
           }}
         >
           <div
@@ -496,6 +491,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
               color: "#d4d4d4",
               fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
               background: "#161616",
+              flex: 1,
             }}
           >
             {codeLines.map((lineText: string, idx: number) => {
@@ -513,6 +509,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
               return (
                 <div
                   key={lineNumber}
+                  ref={isHighlighted ? activeLineRef : null}
                   className={`workspace-code-line${isHighlighted ? " active" : ""}`}
                   style={{
                     "--line-delay": `${lineDelay}s`,
@@ -525,6 +522,7 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
                       alignItems: "start",
                       backgroundColor: isHighlighted ? "rgba(229, 77, 66, 0.16)" : "transparent",
                       borderLeft: isHighlighted ? "3px solid #e54d42" : "3px solid transparent",
+                      transition: "background-color 0.2s ease, border-left-color 0.2s ease",
                    }}
                   >
                     <div
@@ -562,43 +560,65 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
           </div>
         </section>
 
-        <section
-          className="workspace-section"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            width: "100%",
-            maxWidth: "700px",
-            border: "1px solid #323232",
-            borderRadius: "14px",
-            overflow: "hidden",
-            background: "#232323",
-            flexShrink: 0,
-          }}
-        >
-          <div
+        {showVisualizer && (
+          <section
+            className="workspace-section"
             style={{
-              padding: "14px 16px",
-              borderBottom: "1px solid #343434",
-              fontWeight: "bold",
-              fontSize: "14px",
+              display: "flex",
+              flexDirection: "column",
+              flex: 1,
+              width: "100%",
+              maxWidth: isFullScreen ? "none" : "700px",
+              border: "1px solid #323232",
+              borderRadius: "14px",
+              overflow: "hidden",
+              background: "#232323",
+              flexShrink: 0,
+              order: isFullScreen ? 2 : 1,
             }}
           >
-            Output
-          </div>
-          <div
-            style={{
-              background: "#121212",
-              padding: "16px",
-              fontSize: "13px",
-              color: "#fff",
-              minHeight: "74px",
-              fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
-            }}
-          >
-            <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{outputText || "No output yet."}</pre>
-          </div>
-        </section>
+            <div
+              style={{
+                padding: "14px 16px",
+                borderBottom: "1px solid #343434",
+                fontWeight: "bold",
+                fontSize: "14px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center"
+              }}
+            >
+              Visualize
+              <button
+                onClick={onCloseVisualizer}
+                aria-label="Close visualizer"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#888",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "4px"
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "14px", flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+              <Visualizer
+                code={code.code}
+                onActiveLineChange={setActiveLine}
+                onFrameChange={setCurrentFrame}
+              />
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

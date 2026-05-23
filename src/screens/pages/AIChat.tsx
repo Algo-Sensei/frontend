@@ -6,7 +6,6 @@ import ReactMarkdown from 'react-markdown';
 import Sidebar from "../../components/ui/sidebar";
 import { extractCodeBlocks } from "../../components/chat-page-workspace/codeParser";
 import ALWorkspace from "../../components/chat-page-workspace/ALWorkspace";
-import { getRandomMockResponse } from "../../components/chat-page-workspace/mockResponse";
 import {
   fetchCurrentUser,
   fetchChatMessages,
@@ -182,7 +181,6 @@ const InputBox = ({
   onSend,
   onFileChange,
   onRemovePreview,
-  onMockAI,
   canSend,
   isTyping,
   preview,
@@ -197,7 +195,6 @@ const InputBox = ({
   onSend: () => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemovePreview: () => void;
-  onMockAI?: () => void;
   canSend: boolean;
   isTyping: boolean;
   preview: Attachment | null;
@@ -266,15 +263,6 @@ const InputBox = ({
           <IconClip />
           <span>Add photos</span>
         </button>
-
-        {onMockAI && (
-          <button 
-            onClick={onMockAI}
-            style={{ background: '#3a3a3a', border: '1px solid #444', color: '#fff', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-          >
-            Mock AI
-          </button>
-        )}
       </div>
     </div>
   </div>
@@ -294,6 +282,7 @@ export default function AIChat() {
   const [workspaceWidth, setWorkspaceWidth] = useState(480);
   const [activeCode, setActiveCode] = useState<CodeArtifact | null>(null);
   const [showVisualizer, setShowVisualizer] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [recentChatEntering, setRecentChatEntering] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
@@ -651,26 +640,6 @@ export default function AIChat() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  const handleMockAI = () => {
-    setIsTyping(true);
-    setTimeout(() => {
-      const mockResponse = getRandomMockResponse();
-      const parsed = extractCodeBlocks(mockResponse);
-      setMessages(prev => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "ai",
-          text: parsed.cleanText,
-          time: getTime(),
-          code: parsed.code,
-          animateText: true,
-        }
-      ]);
-      setIsTyping(false);
-    }, 1000);
-  };
-
   const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
     el.style.height = "auto";
@@ -684,6 +653,7 @@ export default function AIChat() {
       <div
         style={{
           minHeight: "100vh",
+          width: "100%",
           backgroundColor: "#242424",
           display: "flex",
           alignItems: "center",
@@ -711,7 +681,7 @@ export default function AIChat() {
       style={{
         position: "relative",
         height: "100vh",
-        width: "100vw",
+        width: "100%",
         overflow: "hidden",
         background: "#1e1e1e",
         display: "flex",
@@ -751,7 +721,7 @@ export default function AIChat() {
       <div className={`ai-root${isGuest ? " ai-root-guest" : ""}${enteredFromHero ? " ai-root-enter" : ""}`} 
            style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
         <div className="ai-split-layout" ref={splitRef}>
-          <div className="ai-chat-pane">
+          <div className="ai-chat-pane" style={{ display: isFullScreen ? "none" : "flex" }}>
             {!hasMessages ? (
               <div className="ai-empty ai-empty-refresh" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                 {shouldShowAuthGreeting && (
@@ -772,7 +742,6 @@ export default function AIChat() {
                     onSend={send}
                     onFileChange={handleFileChange}
                     onRemovePreview={handleRemovePreview}
-                    onMockAI={handleMockAI}
                     canSend={canSend}
                     isTyping={isTyping}
                     preview={preview}
@@ -950,7 +919,6 @@ export default function AIChat() {
                     onSend={send}
                     onFileChange={handleFileChange}
                     onRemovePreview={handleRemovePreview}
-                    onMockAI={handleMockAI}
                     canSend={canSend}
                     isTyping={isTyping}
                     preview={preview}
@@ -966,19 +934,48 @@ export default function AIChat() {
 
           {workspaceOpen && activeCode && (
             <>
-              <div
-                className="ai-resize-handle"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize workspace"
-                onPointerDown={handleResizeStart}
-              />
-              <div className="ai-workspace-pane" style={{ width: workspaceWidth }}>
+              {!isFullScreen && (
+                <div
+                  className="ai-resize-handle"
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize workspace"
+                  onPointerDown={handleResizeStart}
+                />
+              )}
+              <div className="ai-workspace-pane" style={{
+                 ...(isFullScreen ? {
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 9999,
+                    width: "100%",
+                    borderRadius: 0,
+                    transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
+                 } : {
+                    width: workspaceWidth,
+                    flex: "0 0 auto",
+                    borderRadius: "0 10px 10px 0",
+                    transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
+                 })
+              }}>
                 <ALWorkspace
                   code={activeCode}
                   showVisualizer={showVisualizer}
                   onVisualize={() => setShowVisualizer(true)}
-                  onClose={() => setWorkspaceOpen(false)}
+                  onClose={() => {
+                     if (isFullScreen) {
+                        setIsFullScreen(false);
+                        setTimeout(() => setWorkspaceOpen(false), 300);
+                     } else {
+                        setWorkspaceOpen(false);
+                     }
+                  }}
+                  isFullScreen={isFullScreen}
+                  onToggleFullScreen={() => setIsFullScreen(prev => !prev)}
+                  onCloseVisualizer={() => setShowVisualizer(false)}
                 />
               </div>
             </>
