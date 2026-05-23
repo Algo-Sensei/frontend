@@ -12,7 +12,6 @@ import {
   fetchChatMessages,
   fetchReply as fetchChatReply,
   sendAuthenticatedReply,
-  uploadFile as uploadChatFile,
   type ChatMessageItem,
   type OpenAIMessage,
   type UserProfile,
@@ -51,6 +50,24 @@ const SYSTEM_PROMPT = `You are AlgoSensei, an expert algorithm and data structur
 You explain concepts clearly, analyze time/space complexity, and help with coding problems.
 Keep responses concise but thorough. Use plain text — no markdown formatting.`;
 const MAX_CHAT_INPUT_LENGTH = 10000;
+const ACCEPTED_CHAT_FILE_TYPES = [
+  "image/*",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".py",
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".java",
+  ".cpp",
+  ".c",
+].join(",");
 const AUTH_GREETING_TEMPLATES = [
   "Welcome back, {name}. Ready to learn?",
   "Let's solve something today, {name}.",
@@ -231,7 +248,7 @@ const InputBox = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,.pdf,.txt,.md,.py,.js,.ts,.java,.cpp,.c"
+          accept={ACCEPTED_CHAT_FILE_TYPES}
           style={{ display: "none" }}
           onChange={onFileChange}
         />
@@ -271,6 +288,7 @@ export default function AIChat() {
   const [error, setError] = useState<string | null>(null);
   const [canSend, setCanSend] = useState(false);
   const [preview, setPreview] = useState<Attachment | null>(null); // local preview before send
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceWidth, setWorkspaceWidth] = useState(480);
@@ -381,6 +399,7 @@ export default function AIChat() {
     setMessages([]);
     setError(null);
     setPreview(null);
+    setAttachmentFile(null);
     historyRef.current = [];
     setHistoryRefreshKey((value) => value + 1);
     resetTextarea();
@@ -398,6 +417,7 @@ export default function AIChat() {
     setMessages([]);
     setError(null);
     setPreview(null);
+    setAttachmentFile(null);
     historyRef.current = [];
     resetTextarea();
     navigate("/chat", { replace: true });
@@ -440,6 +460,7 @@ export default function AIChat() {
     setHiddenRecentChatId(null);
     setError(null);
     setPreview(null);
+    setAttachmentFile(null);
     setUploading(false);
     resetTextarea();
     setIsTyping(true);
@@ -520,27 +541,17 @@ export default function AIChat() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // show local preview right away
-    const localUrl = URL.createObjectURL(file);
-    setPreview({ name: file.name, url: localUrl, type: file.type });
+    // Show a local preview right away; the file itself is sent with the chat request.
+    const localUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : "";
+    setAttachmentFile(file);
+    setPreview({ name: file.name, url: localUrl, type: file.type || file.name.split(".").pop() || "" });
     setCanSend(true);
-
-    // upload to backend in background
-    setUploading(true);
-    try {
-      const remoteUrl = await uploadChatFile(file);
-      // swap local blob URL for the real backend URL
-      setPreview({ name: file.name, url: remoteUrl, type: file.type });
-    } catch {
-      // upload failed
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleRemovePreview = () => {
     setPreview(null);
+    setAttachmentFile(null);
     const el = textareaRef.current;
     setCanSend(el ? el.value.trim().length > 0 : false);
   };
@@ -567,8 +578,10 @@ export default function AIChat() {
     });
 
     const userContent = trimmed + (preview ? `\n[File attached: ${preview.name}]` : "");
+    const fileToSend = attachmentFile;
     resetTextarea();
     setPreview(null);
+    setAttachmentFile(null);
     setIsTyping(true);
 
     historyRef.current.push({ role: "user", content: userContent });
@@ -579,6 +592,7 @@ export default function AIChat() {
         const response = await sendAuthenticatedReply({
           chatId: activeChatId,
           content: userContent,
+          file: fileToSend,
           chatTitle: trimmed || "New chat",
         });
         setActiveChatId(response.chatId);
@@ -895,11 +909,11 @@ export default function AIChat() {
                         ))}
 
                         {msg.role === "ai" && (
-                          <div className="ai-feedback" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                            <button style={{ background: 'none', border: 'none', color: '#fff', opacity: 0.6, cursor: 'pointer', padding: '4px' }}>
+                          <div className="ai-feedback">
+                            <button className="ai-feedback-btn" aria-label="Like response" title="Like response">
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
                             </button>
-                            <button style={{ background: 'none', border: 'none', color: '#fff', opacity: 0.6, cursor: 'pointer', padding: '4px' }}>
+                            <button className="ai-feedback-btn" aria-label="Dislike response" title="Dislike response">
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zM17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
                             </button>
                           </div>

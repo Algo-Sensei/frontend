@@ -237,7 +237,7 @@
   filter: blur(48px) saturate(1.2);
   opacity: 0.78;
   transform: translate(-50%, -50%);
-  animation: aiEmptyBigGlow 10s ease-in-out infinite alternate;
+  animation: aiEmptyBigGlow 6.5s ease-in-out infinite alternate;
   pointer-events: none;
 }
 
@@ -316,7 +316,7 @@
   filter: blur(22px) saturate(1.18);
   opacity: 0.64;
   transform: translateZ(0);
-  animation: aiInputGlowDrift 9s ease-in-out infinite alternate;
+  animation: aiInputGlowDrift 5.8s ease-in-out infinite alternate;
   pointer-events: none;
 }
 
@@ -332,7 +332,7 @@
   border: 1px solid transparent;
   filter: blur(12px);
   opacity: 0.62;
-  animation: aiInputGlowPulse 5.8s ease-in-out infinite alternate;
+  animation: aiInputGlowPulse 3.8s ease-in-out infinite alternate;
   pointer-events: none;
 }
 
@@ -387,6 +387,44 @@
   border-bottom-left-radius: 4px;
   font-size: 14px;
   line-height: 1.6;
+}
+
+.ai-feedback {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  opacity: 0.72;
+  transition: opacity 0.16s ease;
+}
+
+.ai-msg-row:hover .ai-feedback {
+  opacity: 1;
+}
+
+.ai-feedback-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #bdb7b4;
+  cursor: pointer;
+  transition: transform 0.16s ease, color 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ai-feedback-btn:hover {
+  color: #fff4ef;
+  border-color: rgba(226, 78, 64, 0.42);
+  background: rgba(226, 78, 64, 0.1);
+  box-shadow: 0 8px 20px rgba(226, 78, 64, 0.1);
+  transform: translateY(-1px);
+}
+
+.ai-feedback-btn:active {
+  transform: translateY(0);
 }
 
 .ai-code-pill {
