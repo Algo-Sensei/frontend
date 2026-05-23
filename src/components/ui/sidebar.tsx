@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import "./sidebar.css";
 import {
-  deleteChat,
+  clearChatHistory,
   fetchChatHistory,
   fetchCurrentUser,
   logoutUser,
@@ -11,7 +11,7 @@ import {
   type UserProfile,
 } from "../../api";
 
-type ActiveItem = "newchat" | "faq" | "settings" | null;
+type ActiveItem = "newchat" | "history" | "faq" | "settings" | null;
 
 function IconNewChat() {
   return (
@@ -19,6 +19,14 @@ function IconNewChat() {
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       <line x1="12" y1="9" x2="12" y2="15" />
       <line x1="9" y1="12" x2="15" y2="12" />
+    </svg>
+  );
+}
+
+function IconHistory() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }
@@ -62,16 +70,6 @@ function IconExpand() {
   );
 }
 
-function IconMore() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <circle cx="5" cy="12" r="1.8" />
-      <circle cx="12" cy="12" r="1.8" />
-      <circle cx="19" cy="12" r="1.8" />
-    </svg>
-  );
-}
-
 function ProviderIcon({ provider }: { provider?: string }) {
   if (provider?.toUpperCase() === "GITHUB") {
     return (
@@ -100,16 +98,10 @@ const faqs = [
 
 export default function Sidebar({
   onNewChat,
-  onSelectChat,
-  onDeleteChat,
   onCollapse,
-  historyRefreshKey,
 }: {
   onNewChat: () => void;
-  onSelectChat: (chatId: string) => void;
-  onDeleteChat?: (chatId: string) => void;
   onCollapse: (collapsed: boolean) => void;
-  historyRefreshKey: number;
 }) {
   const navigate = useNavigate();
   // starts collapsed so sidebar is closed on login
@@ -122,13 +114,11 @@ export default function Sidebar({
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [openMenuChatId, setOpenMenuChatId] = useState<string | null>(null);
-  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
   // notify AIChat of initial collapsed state on mount
   useEffect(() => {
     onCollapse(true);
-  }, [onCollapse]);
+  }, []);
 
   useEffect(() => {
     fetchCurrentUser()
@@ -137,23 +127,14 @@ export default function Sidebar({
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (active !== "history") return;
     setHistoryLoading(true);
     setHistoryError(null);
     fetchChatHistory()
       .then(data => setHistory(data))
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : "Could not load history.";
-        setHistoryError(message);
-      })
+      .catch(() => setHistoryError("Could not load history."))
       .finally(() => setHistoryLoading(false));
-  }, [user, historyRefreshKey]);
-
-  useEffect(() => {
-    const handleCloseMenu = () => setOpenMenuChatId(null);
-    window.addEventListener("click", handleCloseMenu);
-    return () => window.removeEventListener("click", handleCloseMenu);
-  }, []);
+  }, [active]);
 
   const toggle = (item: ActiveItem) => {
     setActive(prev => prev === item ? null : item);
@@ -166,29 +147,20 @@ export default function Sidebar({
     setActive(null);
   };
 
+  const handleClear = async () => {
+    try {
+      await clearChatHistory();
+      setHistory([]);
+      onNewChat();
+    } catch {}
+  };
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
       await logoutUser();
     } finally {
       window.location.href = "/login?logged_out=1";
-    }
-  };
-
-  const handleDeleteChat = async (chatId: string) => {
-    setDeletingChatId(chatId);
-    setHistoryError(null);
-
-    try {
-      await deleteChat(chatId);
-      setHistory((current) => current.filter((chat) => chat.id !== chatId));
-      setOpenMenuChatId(null);
-      onDeleteChat?.(chatId);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to delete chat.";
-      setHistoryError(message);
-    } finally {
-      setDeletingChatId(null);
     }
   };
 
@@ -250,74 +222,42 @@ export default function Sidebar({
       {!collapsed && (
         <>
           <div className="sb-top">
-            <button
-              className={`sb-item${active === "newchat" ? " active" : ""}`}
-              onClick={() => {
-                onNewChat();
-                setActive(null);
-              }}
-            >
+            <button className={`sb-item${active === "newchat" ? " active" : ""}`} onClick={() => { onNewChat(); setActive(null); }}>
               <IconNewChat />
               <span>New chat</span>
             </button>
 
             {user && (
-              <div className="sb-sublist">
-                <p className="sb-history-placeholder">Recents</p>
-                {historyLoading && <p className="sb-status">Loading...</p>}
-                {historyError && <p className="sb-status sb-error">{historyError}</p>}
-                {!historyLoading && !historyError && history.length === 0 && (
-                  <p className="sb-status">No history yet.</p>
-                )}
-                {!historyLoading && !historyError && groups.map(group => {
-                  const items = history.filter(c => c.date === group);
-                  if (!items.length) return null;
-                  return (
-                    <div key={group}>
-                      <span className="sb-group-label">{group}</span>
-                      {items.map(chat => (
-                        <div key={chat.id} className="sb-history-row">
-                          <button
-                            className="sb-history-item"
-                            onClick={() => onSelectChat(chat.id)}
-                          >
-                            {chat.title}
-                          </button>
-                          <div className="sb-history-actions">
-                            <button
-                              className="sb-history-menu-btn"
-                              aria-label={`More options for ${chat.title}`}
-                              aria-haspopup="menu"
-                              aria-expanded={openMenuChatId === chat.id}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setOpenMenuChatId((current) => current === chat.id ? null : chat.id);
-                              }}
-                            >
-                              <IconMore />
-                            </button>
-                            {openMenuChatId === chat.id && (
-                              <div
-                                className="sb-history-menu"
-                                role="menu"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                <button
-                                  className="sb-history-menu-item sb-history-menu-item-danger"
-                                  onClick={() => void handleDeleteChat(chat.id)}
-                                  disabled={deletingChatId === chat.id}
-                                >
-                                  {deletingChatId === chat.id ? "Deleting..." : "Delete chat"}
-                                </button>
-                              </div>
-                            )}
-                          </div>
+              <>
+                <div className="sb-sep" />
+
+                <button className={`sb-item${active === "history" ? " active" : ""}`} onClick={() => toggle("history")}>
+                  <IconHistory />
+                  <span>Chat History</span>
+                </button>
+
+                {active === "history" && (
+                  <div className="sb-sublist">
+                    {historyLoading && <p className="sb-status">Loading...</p>}
+                    {historyError && <p className="sb-status sb-error">{historyError}</p>}
+                    {!historyLoading && !historyError && history.length === 0 && (
+                      <p className="sb-status">No history yet.</p>
+                    )}
+                    {!historyLoading && !historyError && groups.map(group => {
+                      const items = history.filter(c => c.date === group);
+                      if (!items.length) return null;
+                      return (
+                        <div key={group}>
+                          <span className="sb-group-label">{group}</span>
+                          {items.map(chat => (
+                            <button key={chat.id} className="sb-history-item">{chat.title}</button>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -396,6 +336,12 @@ export default function Sidebar({
       {collapsed && (
         <div className="sb-icon-rail">
           <button className="sb-icon-btn" title="New Chat" onClick={onNewChat}><IconNewChat /></button>
+          {user && (
+            <>
+              <div className="sb-sep-sm" />
+              <button className="sb-icon-btn" title="Chat History" onClick={handleToggleCollapse}><IconHistory /></button>
+            </>
+          )}
           <div className="sb-spacer" />
           <div className="sb-sep-sm" />
           <button className="sb-icon-btn" title="FAQ" onClick={handleToggleCollapse}><IconFAQ /></button>

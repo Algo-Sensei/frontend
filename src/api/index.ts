@@ -9,16 +9,10 @@ export {
   logoutUser,
 } from "./auth";
 export type { LoginProvider, UserProfile } from "./auth";
-export { fetchReply } from "./chat";
-export type { FetchReplyOptions, OpenAIMessage } from "./chat";
-export { sendGuestReply } from "./guestAIChat";
 export {
   clearChatHistory,
-  createChat,
-  deleteChat,
   fetchChatHistory,
-  fetchChatMessages,
-  sendAuthenticatedReply,
-} from "./authAIChat";
-export type { ChatHistoryItem, ChatMessageItem } from "./authAIChat";
+  fetchReply,
+} from "./chat";
+export type { ChatHistoryItem, FetchReplyOptions, OpenAIMessage } from "./chat";
 export { uploadFile } from "./upload";
