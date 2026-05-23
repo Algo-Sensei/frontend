@@ -154,6 +154,7 @@ const InputBox = ({
   uploading,
   canAttachFiles,
   onRequireLogin,
+  textLength,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -169,6 +170,7 @@ const InputBox = ({
   uploading: boolean;
   canAttachFiles: boolean;
   onRequireLogin: () => void;
+  textLength: number;
 }) => (
   <div className="ai-input-card" style={{ width: '100%', background: '#2e2e2e', borderRadius: '16px', border: '1px solid #3a3a3a', padding: '12px' }}>
     {/* file preview strip */}
@@ -203,6 +205,10 @@ const InputBox = ({
       >
         <IconSend />
       </button>
+    </div>
+    
+    <div style={{ textAlign: "right", fontSize: "12px", color: "#888", marginTop: "4px", paddingRight: "36px" }}>
+      {textLength}/5000
     </div>
     
     <div className="ai-divider" style={{ height: '1px', background: '#3a3a3a', margin: '12px 0' }} />
@@ -354,6 +360,7 @@ export default function AIChat() {
     el.style.height = "auto";
     el.style.overflowY = "hidden";
     setCanSend(false);
+    setTextLength(0);
   };
 
   const handleNewChat = () => {
@@ -616,6 +623,7 @@ export default function AIChat() {
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
     el.style.overflowY = el.scrollHeight > 200 ? "auto" : "hidden";
     setCanSend(el.value.trim().length > 0 || preview !== null);
+    setTextLength(el.value.length);
   };
 
   if (!authChecked) {
@@ -709,6 +717,7 @@ export default function AIChat() {
                     uploading={uploading}
                     canAttachFiles={!isGuest}
                     onRequireLogin={() => setShowGuestAttachmentModal(true)}
+                    textLength={textLength}
                   />
                 </div>
                 {error && <p className="ai-error-text">{error}</p>}
@@ -828,6 +837,7 @@ export default function AIChat() {
                     uploading={uploading}
                     canAttachFiles={!isGuest}
                     onRequireLogin={() => setShowGuestAttachmentModal(true)}
+                    textLength={textLength}
                   />
                   </div>
                 </div>

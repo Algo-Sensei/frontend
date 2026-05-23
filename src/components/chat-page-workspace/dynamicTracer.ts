@@ -374,6 +374,9 @@ export const traceDynamicJava = (code: string): ExecutionFrame[] => {
             break;
         }
 
+        // Fallback for unhandled executable lines (e.g., method calls)
+        createFrame(frames, state, pc, `Executed: ${line}`);
+
         pc++;
     }
 
