@@ -6,11 +6,13 @@ import Sidebar from "../../components/ui/sidebar";
 import { extractCodeBlocks } from "../../components/chat-page-workspace/codeParser";
 import ALWorkspace from "../../components/chat-page-workspace/ALWorkspace";
 import { getRandomMockResponse } from "../../components/chat-page-workspace/mockResponse";
-import ReactMarkdown from 'react-markdown';
 import {
   fetchCurrentUser,
+  fetchChatMessages,
   fetchReply as fetchChatReply,
+  sendAuthenticatedReply,
   uploadFile as uploadChatFile,
+  type ChatMessageItem,
   type OpenAIMessage,
   type UserProfile,
 } from "../../api";
@@ -29,6 +31,7 @@ type Message = {
   time: string; 
   attachment?: Attachment;
   code?: CodeArtifact[];
+  animateText?: boolean;
 };
 
 type Attachment = { 
@@ -46,9 +49,59 @@ const MODEL = "gpt-4o"; // model you want to use
 const SYSTEM_PROMPT = `You are AlgoSensei, an expert algorithm and data structures tutor.
 You explain concepts clearly, analyze time/space complexity, and help with coding problems.
 Keep responses concise but thorough. Use plain text — no markdown formatting.`;
+const MAX_CHAT_INPUT_LENGTH = 10000;
 
 function getTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderMessageText(text: string) {
+  return text.split(/\n{2,}/).map((paragraph, index) => (
+    <p
+      key={`${paragraph.slice(0, 20)}-${index}`}
+      style={{ margin: index === 0 ? 0 : "0 0 10px", lineHeight: "1.65", whiteSpace: "pre-wrap" }}
+    >
+      {paragraph}
+    </p>
+  ));
+}
+
+function AnimatedMessageText({
+  text,
+  animate,
+}: {
+  text: string;
+  animate?: boolean;
+}) {
+  const [displayText, setDisplayText] = useState(animate ? "" : text);
+
+  useEffect(() => {
+    if (!animate) {
+      setDisplayText(text);
+      return;
+    }
+
+    let index = 0;
+    const step = Math.max(1, Math.ceil(text.length / 80));
+    setDisplayText("");
+
+    const timer = window.setInterval(() => {
+      index = Math.min(text.length, index + step);
+      setDisplayText(text.slice(0, index));
+
+      if (index >= text.length) {
+        window.clearInterval(timer);
+      }
+    }, 18);
+
+    return () => window.clearInterval(timer);
+  }, [animate, text]);
+
+  return (
+    <div className={animate ? "ai-text-reveal" : undefined}>
+      {renderMessageText(displayText)}
+    </div>
+  );
 }
 
 function IconClip() {
@@ -139,7 +192,7 @@ const InputBox = ({
         onInput={onInput}
         placeholder="Ask me about algorithms, data structures, complexity..."
         rows={1}
-        maxLength={5000}
+        maxLength={MAX_CHAT_INPUT_LENGTH}
         className="ai-textarea"
         disabled={isTyping || uploading}
         style={{ flex: 1, background: 'none', border: 'none', color: '#fff', fontSize: '16px', resize: 'none' }}
@@ -214,7 +267,9 @@ export default function AIChat() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [textLength, setTextLength] = useState(0);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [useSavedChatSession, setUseSavedChatSession] = useState(false);
   const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -267,36 +322,18 @@ export default function AIChat() {
     };
   }, [allowsGuestMode, navigate]);
 
-  // Load chat history from local storage when user is available
   useEffect(() => {
     if (!authChecked) return;
-    if (user) {
-      const stored = localStorage.getItem("algosensei_chat_" + (user.userID || user.email || "default"));
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setMessages(parsed.messages || []);
-          historyRef.current = parsed.history || [];
-        } catch (e) {
-          console.error("Failed to parse chat history");
-        }
-      }
-    } else {
-      // Clear for guests
-      setMessages([]);
-      historyRef.current = [];
-    }
-  }, [user, authChecked]);
 
-  // Save chat history to local storage when messages change
-  useEffect(() => {
-    if (user && authChecked) {
-      localStorage.setItem("algosensei_chat_" + (user.userID || user.email || "default"), JSON.stringify({
-        messages,
-        history: historyRef.current
-      }));
+    if (isGuest) {
+      setUseSavedChatSession(false);
+      return;
     }
-  }, [messages, user, authChecked]);
+
+    if (!activeChatId && messages.length === 0) {
+      setUseSavedChatSession(false);
+    }
+  }, [activeChatId, authChecked, isGuest, messages.length]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -327,11 +364,79 @@ export default function AIChat() {
   };
 
   const handleNewChat = () => {
+    setUseSavedChatSession(true);
+    setActiveChatId(null);
     setMessages([]);
     setError(null);
     setPreview(null);
     historyRef.current = [];
     resetTextarea();
+  };
+
+  const handleDeleteChat = (chatId: string) => {
+    if (activeChatId !== chatId) return;
+
+    setUseSavedChatSession(false);
+    setActiveChatId(null);
+    setMessages([]);
+    setError(null);
+    setPreview(null);
+    historyRef.current = [];
+    resetTextarea();
+  };
+
+  const getDisplayTime = (value?: string) => {
+    if (!value) return getTime();
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? getTime()
+      : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const mapStoredMessages = (items: ChatMessageItem[]): Message[] =>
+    items.map((item, index) => {
+      const parsed = item.role === "assistant" ? extractCodeBlocks(item.content) : null;
+      const attachment =
+        item.attachmentUrl
+          ? {
+              name: item.attachmentName || "Attachment",
+              url: item.attachmentUrl,
+              type: "",
+            }
+          : undefined;
+
+      return {
+        id: item.id || `${index}`,
+        role: item.role === "assistant" ? "ai" : "user",
+        text: item.role === "assistant" ? parsed?.cleanText ?? item.content : item.content,
+        time: getDisplayTime(item.createdAt),
+        attachment,
+        code: item.role === "assistant" ? parsed?.code : undefined,
+        animateText: false,
+      };
+    });
+
+  const loadChat = async (chatId: string) => {
+    setUseSavedChatSession(true);
+    setError(null);
+    setPreview(null);
+    setUploading(false);
+    resetTextarea();
+    setIsTyping(true);
+
+    try {
+      const chatMessages = await fetchChatMessages(chatId);
+      setActiveChatId(chatId);
+      setMessages(mapStoredMessages(chatMessages));
+      historyRef.current = chatMessages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+    } catch (err: any) {
+      setError(err.message ?? "Failed to load chat.");
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const openWorkspace = (code: CodeArtifact) => {
@@ -433,11 +538,38 @@ export default function AIChat() {
     historyRef.current.push({ role: "user", content: userContent });
 
     try {
+      if (!isGuest && useSavedChatSession) {
+        const response = await sendAuthenticatedReply({
+          chatId: activeChatId,
+          content: userContent,
+          chatTitle: trimmed || "New chat",
+        });
+        setActiveChatId(response.chatId);
+        setHistoryRefreshKey((value) => value + 1);
+        historyRef.current.push({ role: "assistant", content: response.reply });
+
+        const parsed = extractCodeBlocks(response.reply);
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "ai",
+            text: parsed.cleanText,
+            time: getTime(),
+            code: parsed.code,
+            animateText: true,
+          }
+        ]);
+        return;
+      }
+
       const reply = await fetchChatReply(historyRef.current, {
         apiKey: OPENAI_API_KEY,
         model: MODEL,
         systemPrompt: SYSTEM_PROMPT,
       });
+
       historyRef.current.push({ role: "assistant", content: reply });
 
       const parsed = extractCodeBlocks(reply);
@@ -450,6 +582,7 @@ export default function AIChat() {
           text: parsed.cleanText,
           time: getTime(),
           code: parsed.code,
+          animateText: true,
         }
       ]);
       
@@ -477,6 +610,7 @@ export default function AIChat() {
           text: parsed.cleanText,
           time: getTime(),
           code: parsed.code,
+          animateText: true,
         }
       ]);
       setIsTyping(false);
@@ -550,7 +684,15 @@ export default function AIChat() {
         </>
       )}
 
-      {!isGuest && <Sidebar onNewChat={handleNewChat} onCollapse={() => {}} />}
+      {!isGuest && (
+        <Sidebar
+          onNewChat={handleNewChat}
+          onSelectChat={loadChat}
+          onDeleteChat={handleDeleteChat}
+          onCollapse={() => {}}
+          historyRefreshKey={historyRefreshKey}
+        />
+      )}
 
       <div className={`ai-root${isGuest ? " ai-root-guest" : ""}${enteredFromHero ? " ai-root-enter" : ""}`} 
            style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
@@ -611,62 +753,7 @@ export default function AIChat() {
                           border: msg.role === "ai" ? "1px solid #333" : "none"
                         }}>
                           {msg.role === "ai" ? (
-                            <ReactMarkdown
-                              components={{
-                                p: ({ children }) => (
-                                  <p style={{ margin: "0 0 10px", lineHeight: "1.65" }}>{children}</p>
-                                ),
-                                strong: ({ children }) => (
-                                  <strong style={{ color: "#fff", fontWeight: 700 }}>{children}</strong>
-                                ),
-                                em: ({ children }) => (
-                                  <em style={{ color: "#d4d0cb" }}>{children}</em>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ol>
-                                ),
-                                li: ({ children }) => (
-                                  <li style={{ marginBottom: "4px", lineHeight: "1.6" }}>{children}</li>
-                                ),
-                                code: ({ children }) => (
-                                  <code style={{
-                                    background: "#1a1a1a",
-                                    padding: "2px 6px",
-                                    borderRadius: "4px",
-                                    fontSize: "13px",
-                                    fontFamily: "Consolas, Monaco, monospace",
-                                    color: "#e06c75",
-                                  }}>
-                                    {children}
-                                  </code>
-                                ),
-                                h1: ({ children }) => (
-                                  <h1 style={{ fontSize: "18px", fontWeight: 700, margin: "12px 0 8px", color: "#fff" }}>{children}</h1>
-                                ),
-                                h2: ({ children }) => (
-                                  <h2 style={{ fontSize: "16px", fontWeight: 700, margin: "10px 0 6px", color: "#fff" }}>{children}</h2>
-                                ),
-                                h3: ({ children }) => (
-                                  <h3 style={{ fontSize: "14px", fontWeight: 700, margin: "8px 0 4px", color: "#e0dbd5" }}>{children}</h3>
-                                ),
-                                blockquote: ({ children }) => (
-                                  <blockquote style={{
-                                    borderLeft: "3px solid #e24e40",
-                                    paddingLeft: "12px",
-                                    margin: "8px 0",
-                                    color: "#b0aca8",
-                                    fontStyle: "italic",
-                                  }}>
-                                    {children}
-                                  </blockquote>
-                                ),
-                              }}
-                            >
-                              {msg.text}
-                            </ReactMarkdown>
+                            <AnimatedMessageText text={msg.text} animate={msg.animateText} />
                           ) : (
                             msg.text
                           )}
@@ -713,12 +800,6 @@ export default function AIChat() {
                           </div>
                         )}
                       </div>
-                      
-                      {msg.role === "user" && (
-                        <div className="user-avatar" style={{ 
-                          width: "32px", height: "32px", background: "#fff", borderRadius: "50%", flexShrink: 0 
-                        }}></div>
-                      )}
                     </div>
                   ))}
 
