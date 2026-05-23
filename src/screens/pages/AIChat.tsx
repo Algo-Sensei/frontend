@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // @ts-ignore: CSS side-effect import without type declarations
 import "./AIChat.css";
+import ReactMarkdown from 'react-markdown';
 import Sidebar from "../../components/ui/sidebar";
 import { extractCodeBlocks } from "../../components/chat-page-workspace/codeParser";
 import ALWorkspace from "../../components/chat-page-workspace/ALWorkspace";
@@ -74,7 +75,7 @@ function AnimatedMessageText({
   animate?: boolean;
 }) {
   const [displayText, setDisplayText] = useState(animate ? "" : text);
-
+  
   useEffect(() => {
     if (!animate) {
       setDisplayText(text);
@@ -266,6 +267,7 @@ export default function AIChat() {
   const [showVisualizer, setShowVisualizer] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
+  const [textLength, setTextLength] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -743,7 +745,8 @@ export default function AIChat() {
                       
                       <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%" }}>
                         {msg.text && (
-                          <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"} style={{
+                          // AFTER
+                        <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"} style={{
                           padding: "12px 20px",
                           borderRadius: "16px",
                           background: msg.role === "user" ? "#3a3a3a" : "transparent",
@@ -753,7 +756,62 @@ export default function AIChat() {
                           border: msg.role === "ai" ? "1px solid #333" : "none"
                         }}>
                           {msg.role === "ai" ? (
-                            <AnimatedMessageText text={msg.text} animate={msg.animateText} />
+                            <ReactMarkdown
+                              components={{
+                                p: ({ children }) => (
+                                  <p style={{ margin: "0 0 10px", lineHeight: "1.65" }}>{children}</p>
+                                ),
+                                strong: ({ children }) => (
+                                  <strong style={{ color: "#fff", fontWeight: 700 }}>{children}</strong>
+                                ),
+                                em: ({ children }) => (
+                                  <em style={{ color: "#d4d0cb" }}>{children}</em>
+                                ),
+                                ul: ({ children }) => (
+                                  <ul style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ul>
+                                ),
+                                ol: ({ children }) => (
+                                  <ol style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ol>
+                                ),
+                                li: ({ children }) => (
+                                  <li style={{ marginBottom: "4px", lineHeight: "1.6" }}>{children}</li>
+                                ),
+                                code: ({ children }) => (
+                                  <code style={{
+                                    background: "#1a1a1a",
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    fontSize: "13px",
+                                    fontFamily: "Consolas, Monaco, monospace",
+                                    color: "#e06c75",
+                                  }}>
+                                    {children}
+                                  </code>
+                                ),
+                                h1: ({ children }) => (
+                                  <h1 style={{ fontSize: "18px", fontWeight: 700, margin: "12px 0 8px", color: "#fff" }}>{children}</h1>
+                                ),
+                                h2: ({ children }) => (
+                                  <h2 style={{ fontSize: "16px", fontWeight: 700, margin: "10px 0 6px", color: "#fff" }}>{children}</h2>
+                                ),
+                                h3: ({ children }) => (
+                                  <h3 style={{ fontSize: "14px", fontWeight: 700, margin: "8px 0 4px", color: "#e0dbd5" }}>{children}</h3>
+                                ),
+                                blockquote: ({ children }) => (
+                                  <blockquote style={{
+                                    borderLeft: "3px solid #e24e40",
+                                    paddingLeft: "12px",
+                                    margin: "8px 0",
+                                    color: "#b0aca8",
+                                    fontStyle: "italic",
+                                  }}>
+                                    {children}
+                                  </blockquote>
+                                ),
+                              }}
+                            >
+                              {msg.text}
+                            </ReactMarkdown>
                           ) : (
                             msg.text
                           )}
