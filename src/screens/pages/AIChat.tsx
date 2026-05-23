@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, } from "react";
+import React, { useState, useRef, useEffect, useCallback, } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // @ts-ignore: CSS side-effect import without type declarations
 import "./AIChat.css";
@@ -51,9 +51,26 @@ const SYSTEM_PROMPT = `You are AlgoSensei, an expert algorithm and data structur
 You explain concepts clearly, analyze time/space complexity, and help with coding problems.
 Keep responses concise but thorough. Use plain text — no markdown formatting.`;
 const MAX_CHAT_INPUT_LENGTH = 10000;
+const AUTH_GREETING_TEMPLATES = [
+  "Welcome back, {name}. Ready to learn?",
+  "Let's solve something today, {name}.",
+  "Ready for another challenge, {name}?",
+  "What shall we debug, {name}?",
+  "Let's sharpen your skills, {name}.",
+  "Time to crack logic, {name}.",
+];
 
 function getTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function getFirstName(name?: string) {
+  return name?.trim().split(/\s+/)[0] || "there";
+}
+
+function getGreetingParts(template: string) {
+  const [beforeName, afterName = ""] = template.split("{name}");
+  return { beforeName, afterName };
 }
 
 function renderMessageText(text: string) {
@@ -155,7 +172,6 @@ const InputBox = ({
   uploading,
   canAttachFiles,
   onRequireLogin,
-  textLength,
 }: {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -171,7 +187,6 @@ const InputBox = ({
   uploading: boolean;
   canAttachFiles: boolean;
   onRequireLogin: () => void;
-  textLength: number;
 }) => (
   <div className="ai-input-card" style={{ width: '100%', background: '#2e2e2e', borderRadius: '16px', border: '1px solid #3a3a3a', padding: '12px' }}>
     {/* file preview strip */}
@@ -206,10 +221,6 @@ const InputBox = ({
       >
         <IconSend />
       </button>
-    </div>
-    
-    <div style={{ textAlign: "right", fontSize: "12px", color: "#888", marginTop: "4px", paddingRight: "36px" }}>
-      {textLength}/5000
     </div>
     
     <div className="ai-divider" style={{ height: '1px', background: '#3a3a3a', margin: '12px 0' }} />
@@ -265,21 +276,31 @@ export default function AIChat() {
   const [workspaceWidth, setWorkspaceWidth] = useState(480);
   const [activeCode, setActiveCode] = useState<CodeArtifact | null>(null);
   const [showVisualizer, setShowVisualizer] = useState(false);
+  const [recentChatEntering, setRecentChatEntering] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
-  const [textLength, setTextLength] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [hiddenRecentChatId, setHiddenRecentChatId] = useState<string | null>(null);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
-  const [useSavedChatSession, setUseSavedChatSession] = useState(false);
+  const [showAuthGreeting, setShowAuthGreeting] = useState(true);
+  const [authGreetingTemplate] = useState(() => (
+    AUTH_GREETING_TEMPLATES[Math.floor(Math.random() * AUTH_GREETING_TEMPLATES.length)]
+  ));
   const historyRef = useRef<OpenAIMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const splitRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const startingNewChatRef = useRef(false);
   const hasMessages = messages.length > 0;
-  const allowsGuestMode = new URLSearchParams(location.search).get("mode") === "guest";
+  const searchParams = new URLSearchParams(location.search);
+  const allowsGuestMode = searchParams.get("mode") === "guest";
+  const requestedChatId = searchParams.get("chatId");
   const isGuest = authChecked && !user;
+  const shouldShowAuthGreeting = Boolean(user && showAuthGreeting);
+  const greetingName = getFirstName(user?.name);
+  const greetingParts = getGreetingParts(authGreetingTemplate);
   const transitionState = location.state as { fromHero?: boolean } | null;
   const enteredFromHero = Boolean(transitionState?.fromHero);
 
@@ -325,19 +346,6 @@ export default function AIChat() {
   }, [allowsGuestMode, navigate]);
 
   useEffect(() => {
-    if (!authChecked) return;
-
-    if (isGuest) {
-      setUseSavedChatSession(false);
-      return;
-    }
-
-    if (!activeChatId && messages.length === 0) {
-      setUseSavedChatSession(false);
-    }
-  }, [activeChatId, authChecked, isGuest, messages.length]);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isTyping]);
 
@@ -355,47 +363,55 @@ export default function AIChat() {
     if (preview) setCanSend(true);
   }, [preview]);
 
-  const resetTextarea = () => {
+  const resetTextarea = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.value = "";
     el.style.height = "auto";
     el.style.overflowY = "hidden";
     setCanSend(false);
-    setTextLength(0);
-  };
+  }, []);
 
   const handleNewChat = () => {
-    setUseSavedChatSession(true);
+    startingNewChatRef.current = true;
+    setShowAuthGreeting(false);
+    setRecentChatEntering(false);
+    setHiddenRecentChatId(null);
     setActiveChatId(null);
     setMessages([]);
     setError(null);
     setPreview(null);
     historyRef.current = [];
+    setHistoryRefreshKey((value) => value + 1);
     resetTextarea();
+    navigate("/chat", { replace: true });
   };
 
   const handleDeleteChat = (chatId: string) => {
     if (activeChatId !== chatId) return;
 
-    setUseSavedChatSession(false);
+    if (hiddenRecentChatId === chatId) {
+      setHiddenRecentChatId(null);
+    }
+    setRecentChatEntering(false);
     setActiveChatId(null);
     setMessages([]);
     setError(null);
     setPreview(null);
     historyRef.current = [];
     resetTextarea();
+    navigate("/chat", { replace: true });
   };
 
-  const getDisplayTime = (value?: string) => {
+  const getDisplayTime = useCallback((value?: string) => {
     if (!value) return getTime();
     const date = new Date(value);
     return Number.isNaN(date.getTime())
       ? getTime()
       : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
+  }, []);
 
-  const mapStoredMessages = (items: ChatMessageItem[]): Message[] =>
+  const mapStoredMessages = useCallback((items: ChatMessageItem[]): Message[] =>
     items.map((item, index) => {
       const parsed = item.role === "assistant" ? extractCodeBlocks(item.content) : null;
       const attachment =
@@ -416,10 +432,12 @@ export default function AIChat() {
         code: item.role === "assistant" ? parsed?.code : undefined,
         animateText: false,
       };
-    });
+    }), [getDisplayTime]);
 
-  const loadChat = async (chatId: string) => {
-    setUseSavedChatSession(true);
+  const loadChat = useCallback(async (chatId: string) => {
+    setShowAuthGreeting(false);
+    setRecentChatEntering(false);
+    setHiddenRecentChatId(null);
     setError(null);
     setPreview(null);
     setUploading(false);
@@ -430,6 +448,7 @@ export default function AIChat() {
       const chatMessages = await fetchChatMessages(chatId);
       setActiveChatId(chatId);
       setMessages(mapStoredMessages(chatMessages));
+      setRecentChatEntering(true);
       historyRef.current = chatMessages.map((message) => ({
         role: message.role,
         content: message.content,
@@ -439,7 +458,22 @@ export default function AIChat() {
     } finally {
       setIsTyping(false);
     }
+  }, [mapStoredMessages, resetTextarea]);
+
+  const handleSelectChat = (chatId: string) => {
+    navigate(`/chat?chatId=${encodeURIComponent(chatId)}`);
   };
+
+  useEffect(() => {
+    if (!requestedChatId) {
+      startingNewChatRef.current = false;
+      return;
+    }
+
+    if (startingNewChatRef.current) return;
+    if (!authChecked || !user || !requestedChatId || requestedChatId === activeChatId) return;
+    void loadChat(requestedChatId);
+  }, [activeChatId, authChecked, loadChat, requestedChatId, user]);
 
   const openWorkspace = (code: CodeArtifact) => {
     setActiveCode(code);
@@ -540,13 +574,17 @@ export default function AIChat() {
     historyRef.current.push({ role: "user", content: userContent });
 
     try {
-      if (!isGuest && useSavedChatSession) {
+      if (!isGuest) {
+        const isNewPersistedChat = !activeChatId;
         const response = await sendAuthenticatedReply({
           chatId: activeChatId,
           content: userContent,
           chatTitle: trimmed || "New chat",
         });
         setActiveChatId(response.chatId);
+        if (isNewPersistedChat) {
+          setHiddenRecentChatId(response.chatId);
+        }
         setHistoryRefreshKey((value) => value + 1);
         historyRef.current.push({ role: "assistant", content: response.reply });
 
@@ -625,7 +663,6 @@ export default function AIChat() {
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
     el.style.overflowY = el.scrollHeight > 200 ? "auto" : "hidden";
     setCanSend(el.value.trim().length > 0 || preview !== null);
-    setTextLength(el.value.length);
   };
 
   if (!authChecked) {
@@ -689,10 +726,11 @@ export default function AIChat() {
       {!isGuest && (
         <Sidebar
           onNewChat={handleNewChat}
-          onSelectChat={loadChat}
+          onSelectChat={handleSelectChat}
           onDeleteChat={handleDeleteChat}
           onCollapse={() => {}}
           historyRefreshKey={historyRefreshKey}
+          hiddenChatId={hiddenRecentChatId}
         />
       )}
 
@@ -701,9 +739,17 @@ export default function AIChat() {
         <div className="ai-split-layout" ref={splitRef}>
           <div className="ai-chat-pane">
             {!hasMessages ? (
-              <div className="ai-empty" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <h1 className="ai-empty-title">Got any algorithm questions?</h1>
-                <div style={{ width: "100%", maxWidth: 580 }}>
+              <div className="ai-empty ai-empty-refresh" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                {shouldShowAuthGreeting && (
+                  <h1 className="ai-empty-title">
+                    <>
+                      {greetingParts.beforeName}
+                      <span className="ai-empty-title-name">{greetingName}</span>
+                      {greetingParts.afterName}
+                    </>
+                  </h1>
+                )}
+                <div className="ai-empty-input-wrap" style={{ width: "100%", maxWidth: 580 }}>
                   <InputBox
                     textareaRef={textareaRef}
                     fileInputRef={fileInputRef}
@@ -719,7 +765,6 @@ export default function AIChat() {
                     uploading={uploading}
                     canAttachFiles={!isGuest}
                     onRequireLogin={() => setShowGuestAttachmentModal(true)}
-                    textLength={textLength}
                   />
                 </div>
                 {error && <p className="ai-error-text">{error}</p>}
@@ -727,6 +772,7 @@ export default function AIChat() {
             ) : (
               <>
                 <div className="ai-feed" style={{ flex: 1, overflowY: "auto", padding: "80px clamp(24px, 8%, 20%) 20px" }}>
+                  <div className={recentChatEntering ? "ai-recent-chat-enter" : undefined}>
                   {messages.map(msg => (
                     <div key={msg.id} className="ai-msg-row" style={{ 
                       display: "flex",
@@ -840,7 +886,8 @@ export default function AIChat() {
                               cursor: "pointer",
                               display: "flex",
                               alignItems: "center",
-                              fontWeight: "500"
+                              fontWeight: "500",
+                              animationDelay: `${i * 0.06}s`,
                             }}
                           >
                             {snippet.filename}
@@ -860,6 +907,7 @@ export default function AIChat() {
                       </div>
                     </div>
                   ))}
+                  </div>
 
                   {isTyping && (
                     <div className="ai-msg-row" style={{ justifyContent: "flex-start", gap: "12px" }}>
@@ -895,7 +943,6 @@ export default function AIChat() {
                     uploading={uploading}
                     canAttachFiles={!isGuest}
                     onRequireLogin={() => setShowGuestAttachmentModal(true)}
-                    textLength={textLength}
                   />
                   </div>
                 </div>
