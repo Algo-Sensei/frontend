@@ -12,6 +12,7 @@ import {
 } from "../../api";
 
 type ActiveItem = "newchat" | "faq" | "settings" | null;
+const SIDEBAR_AUTO_HIDE_MS = 3000;
 
 function IconNewChat() {
   return (
@@ -104,12 +105,14 @@ export default function Sidebar({
   onDeleteChat,
   onCollapse,
   historyRefreshKey,
+  hiddenChatId,
 }: {
   onNewChat: () => void;
   onSelectChat: (chatId: string) => void;
   onDeleteChat?: (chatId: string) => void;
   onCollapse: (collapsed: boolean) => void;
   historyRefreshKey: number;
+  hiddenChatId?: string | null;
 }) {
   const navigate = useNavigate();
   // starts collapsed so sidebar is closed on login
@@ -155,6 +158,20 @@ export default function Sidebar({
     return () => window.removeEventListener("click", handleCloseMenu);
   }, []);
 
+  useEffect(() => {
+    if (collapsed || showLogoutConfirm) return;
+
+    const timer = window.setTimeout(() => {
+      setCollapsed(true);
+      onCollapse(true);
+      setActive(null);
+      setOpenFaq(null);
+      setOpenMenuChatId(null);
+    }, SIDEBAR_AUTO_HIDE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [active, collapsed, onCollapse, openFaq, openMenuChatId, showLogoutConfirm]);
+
   const toggle = (item: ActiveItem) => {
     setActive(prev => prev === item ? null : item);
   };
@@ -192,6 +209,9 @@ export default function Sidebar({
     }
   };
 
+  const visibleHistory = hiddenChatId
+    ? history.filter((chat) => chat.id !== hiddenChatId)
+    : history;
   const groups = ["Today", "Yesterday", "This week"];
   const userInitials = user?.name
     ?.split(" ")
@@ -266,11 +286,11 @@ export default function Sidebar({
                 <p className="sb-history-placeholder">Recents</p>
                 {historyLoading && <p className="sb-status">Loading...</p>}
                 {historyError && <p className="sb-status sb-error">{historyError}</p>}
-                {!historyLoading && !historyError && history.length === 0 && (
+                {!historyLoading && !historyError && visibleHistory.length === 0 && (
                   <p className="sb-status">No history yet.</p>
                 )}
                 {!historyLoading && !historyError && groups.map(group => {
-                  const items = history.filter(c => c.date === group);
+                  const items = visibleHistory.filter(c => c.date === group);
                   if (!items.length) return null;
                   return (
                     <div key={group}>

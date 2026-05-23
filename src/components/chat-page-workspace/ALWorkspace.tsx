@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import "./ALWorkspace.css";
 import Visualizer from "./Visualizer";
 import type { ExecutionFrame } from "./traceProgram";
@@ -457,30 +457,47 @@ const ALWorkspace = ({ code, showVisualizer, onVisualize, onClose }: any) => {
             {codeLines.map((lineText: string, idx: number) => {
               const lineNumber = idx + 1;
               const isHighlighted = showVisualizer && activeLine === lineNumber;
+              const visibleCharacterCount = Math.max(lineText.length, 1);
+              const lineDelay = Math.min(idx * 0.045, 2.2);
+              const lineDuration = Math.min(Math.max(visibleCharacterCount * 0.012, 0.18), 1.1);
+              const typingStyle = {
+                "--line-chars": visibleCharacterCount,
+                "--line-delay": `${lineDelay}s`,
+                "--line-duration": `${lineDuration}s`,
+              } as CSSProperties;
 
               return (
                 <div
                   key={lineNumber}
+                  className={`workspace-code-line${isHighlighted ? " active" : ""}`}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "52px 1fr",
-                    alignItems: "start",
-                    backgroundColor: isHighlighted ? "rgba(229, 77, 66, 0.16)" : "transparent",
-                    borderLeft: isHighlighted ? "3px solid #e54d42" : "3px solid transparent",
-                  }}
+                    "--line-delay": `${lineDelay}s`,
+                  } as CSSProperties}
                 >
                   <div
-                    style={{
-                      padding: "0 12px 0 16px",
-                      color: isHighlighted ? "#f1a197" : "#666",
-                      textAlign: "right",
-                      userSelect: "none",
-                    }}
+                   style={{
+                      display: "grid",
+                      gridTemplateColumns: "52px 1fr",
+                      alignItems: "start",
+                      backgroundColor: isHighlighted ? "rgba(229, 77, 66, 0.16)" : "transparent",
+                      borderLeft: isHighlighted ? "3px solid #e54d42" : "3px solid transparent",
+                   }}
                   >
-                    {lineNumber}
-                  </div>
-                  <div style={{ padding: "0 16px 0 0", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                    {renderHighlightedLine(highlightedCodeLines[idx], lineNumber)}
+                    <div
+                      style={{
+                        padding: "0 12px 0 16px",
+                        color: isHighlighted ? "#f1a197" : "#666",
+                        textAlign: "right",
+                        userSelect: "none",
+                      }}
+                    >
+                      {lineNumber}
+                    </div>
+                    <div style={{ padding: "0 16px 0 0" }}>
+                      <span className="workspace-code-text" style={typingStyle}>
+                        {renderHighlightedLine(highlightedCodeLines[idx], lineNumber)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
