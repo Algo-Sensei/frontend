@@ -209,7 +209,6 @@ export default function Sidebar({
 
   const openLogoutConfirm = () => {
     clearAutoHideTimer();
-    setActive(null);
     setOpenFaq(null);
     setShowLogoutConfirm(true);
   };
@@ -350,7 +349,6 @@ export default function Sidebar({
         ))}
       </div>
       <div className="sb-setting-row">
-        <span>Logout</span>
         <button className="sb-danger-btn" onClick={openLogoutConfirm}>Logout</button>
       </div>
     </div>,
