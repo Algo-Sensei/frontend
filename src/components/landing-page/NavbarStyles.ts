@@ -17,8 +17,8 @@ export const navInnerStyle = (scrolled: boolean): React.CSSProperties => ({
   justifyContent: "space-between",
   alignItems: "center",
   padding: "1rem 2rem",
-  fontFamily: "'Inter', sans-serif",
-  borderRadius: "10px",
+  fontFamily: "var(--font-body)",
+  borderRadius: "12px",
   width: "100%",
   maxWidth: "1600px",
   transition: "all 0.3s ease",
@@ -35,7 +35,7 @@ export const navInnerStyle = (scrolled: boolean): React.CSSProperties => ({
 
 export const linksContainer: React.CSSProperties = {
   display: "flex",
-  gap: "3rem",
+  gap: "2.25rem",
 };
 
 export const rightContainer: React.CSSProperties = {
@@ -46,10 +46,10 @@ export const rightContainer: React.CSSProperties = {
 
 export const logoText: React.CSSProperties = {
   fontSize: "1rem",
-  fontWeight: "bold",
-  letterSpacing: "0.04em",
+  fontWeight: 800,
+  letterSpacing: 0,
   color: "white",
-  fontFamily: "'Inter', sans-serif",
+  fontFamily: "var(--font-display)",
 };
 
 export const divider: React.CSSProperties = {
@@ -63,7 +63,7 @@ export const loginLink = (hovered: boolean): React.CSSProperties => ({
   cursor: "pointer",
   textDecoration: "none",
   fontSize: "0.9rem",
-  fontFamily: "'Inter', sans-serif",
+  fontFamily: "var(--font-body)",
   transition: "color 0.2s",
   color: hovered ? "#D9D9D9" : "white",
   position: "relative",
@@ -78,13 +78,13 @@ export const linkStyle = (
   hoveredLink: string | null
 ): React.CSSProperties => ({
   textDecoration: "none",
-  fontSize: "1rem",
-  fontFamily: "'Inter', sans-serif",
-  letterSpacing: "0.02em",
+  fontSize: "0.94rem",
+  fontFamily: "var(--font-body)",
+  letterSpacing: 0,
   transition: "color 0.2s",
   color:
     pathName === path
-      ? "#E24E40"
+      ? "var(--landing-accent)"
       : hoveredLink === path
       ? "#D9D9D9"
       : "white",
@@ -101,7 +101,7 @@ export const underlineStyle = (
   left: "0%",
   width: isHovered || isActive ? "100%" : "0%",
   height: "2px",
-  background: isActive ? "#E24e40" : "#D9D9D9",
+  background: isActive ? "var(--landing-accent)" : "#D9D9D9",
   transition: "width 0.25s ease",
   borderRadius: "2px",
 });

@@ -107,10 +107,10 @@ const Hero = () => {
             }}
           >
             <div style={{ maxWidth: "520px", animation: "fadeUp 0.8s ease both" }}>
-              <h1 style={{ fontFamily: "'Inter', sans-serif", fontSize: "clamp(3.25rem, 6vw, 5.5rem)", fontWeight: 800, lineHeight: 0.98, letterSpacing: "-0.04em", color: "#ffffff", marginBottom: "1.25rem" }}>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(3.2rem, 6vw, 5.4rem)", fontWeight: 800, lineHeight: 1.02, letterSpacing: 0, color: "var(--landing-text)", marginBottom: "1.25rem" }}>
                 Think.<br />Visualize.<br />Code.
               </h1>
-              <p style={{ fontFamily: "'Inter', sans-serif", fontSize: "clamp(1rem, 1.6vw, 1.1rem)", color: "rgba(255, 255, 255, 0.88)", lineHeight: 1.65, marginBottom: "2rem", maxWidth: "460px" }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: "clamp(1rem, 1.6vw, 1.1rem)", color: "rgba(255, 255, 255, 0.86)", lineHeight: 1.7, marginBottom: "2rem", maxWidth: "460px" }}>
                 Your AI guide to understanding DSA one animation at a time.
               </p>
               <button
@@ -119,7 +119,7 @@ const Hero = () => {
                 onMouseLeave={() => setBtnHovered(false)}
                 disabled={isLaunching}
                 style={{
-                  background: isLaunching ? "#f06b5d" : btnHovered ? "#c94030" : "#E24E40",
+                  background: isLaunching ? "#f06b5d" : btnHovered ? "var(--landing-accent-hover)" : "var(--landing-accent)",
                   color: "#ffffff",
                   border: "1px solid rgba(255, 255, 255, 0.12)",
                   padding: "0.95rem 1.5rem",
@@ -128,9 +128,9 @@ const Hero = () => {
                   fontSize: "0.95rem",
                   fontWeight: 600,
                   letterSpacing: "-0.01em",
-                  fontFamily: "'Inter', sans-serif",
+                  fontFamily: "var(--font-body)",
                   cursor: isLaunching ? "progress" : "pointer",
-                  borderRadius: "12px",
+                  borderRadius: "10px",
                   boxShadow: isLaunching
                     ? "0 0 0 10px rgba(226, 78, 64, 0.14), 0 0 34px rgba(226, 78, 64, 0.28), 0 16px 28px rgba(0, 0, 0, 0.24)"
                     : btnHovered

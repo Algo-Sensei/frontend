@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useRef } from "react";
 import Navbar from "../../components/landing-page/Navbar";
 import Hero from "../../components/landing-page/Hero";
 import OurProject from "../../components/landing-page/OurProject";
@@ -10,9 +9,24 @@ const LandingPage = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body, #root { height: 100%; width: 100%; background-color: #242424; }
+        :root {
+          --landing-bg: #242424;
+          --landing-surface: #1e1e1e;
+          --landing-panel: #232323;
+          --landing-text: #ffffff;
+          --landing-muted: #a7a7a7;
+          --landing-soft: #d9d9d9;
+          --landing-accent: #e24e40;
+          --landing-accent-hover: #c94030;
+          --landing-border: rgba(255,255,255,0.1);
+          --font-display: 'Sora', 'Inter', sans-serif;
+          --font-body: 'Inter', sans-serif;
+        }
+        html, body, #root { height: 100%; width: 100%; background-color: var(--landing-bg); font-family: var(--font-body); }
+        html { scroll-behavior: smooth; }
+        ::selection { background: rgba(226, 78, 64, 0.35); color: #fff; }
 
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(24px); }

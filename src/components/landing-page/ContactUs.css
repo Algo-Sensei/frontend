@@ -3,11 +3,11 @@
    ================================ */
 
 .contact-page {
-  background-color: #000;
+  background-color: #101010;
   color: #fff;
   min-height: calc(100vh - 100px);
   padding-top: 100px;
-  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-body);
   display: flex;
   flex-direction: column;
 }
@@ -34,11 +34,12 @@
 
 /* ── Left Column ────────────────── */
 .contact-heading {
-  font-size: 3rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 4vw, 3rem);
   font-weight: 800;
   line-height: 1.1;
   margin: 0 0 20px;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
 }
 
 .contact-subtext {
@@ -78,6 +79,7 @@
 }
 
 .section-title {
+  font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
   margin: 0 0 10px;
@@ -106,7 +108,7 @@
 .contact-right {
   padding-top: 4px;
   padding: 28px;
-  border-radius: 28px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.02);
   border: none;
   backdrop-filter: blur(16px);
@@ -114,11 +116,12 @@
 }
 
 .form-heading {
+  font-family: var(--font-display);
   font-size: clamp(2.4rem, 4vw, 3rem);
   font-weight: 800;
   margin: 0 0 8px;
-  letter-spacing: -0.04em;
-  line-height: 0.98;
+  letter-spacing: 0;
+  line-height: 1.04;
 }
 
 .form-subtext {
@@ -145,7 +148,7 @@
 .form-input {
   background-color: #232323;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 14px;
+  border-radius: 10px;
   color: #fff;
   font-size: 0.92rem;
   padding: 15px 16px;
@@ -174,7 +177,7 @@
   display: flex;
   align-items: stretch;
   background-color: #232323;
-  border-radius: 14px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   overflow: hidden;
   transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
@@ -240,7 +243,7 @@
   min-height: 230px;
   background-color: #232323;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 14px;
+  border-radius: 10px;
   color: #fff;
   font-size: 0.92rem;
   font-family: inherit;
@@ -275,7 +278,7 @@
   background: linear-gradient(135deg, #e24e49, #f06a58);
   color: #fff;
   border: none;
-  border-radius: 14px;
+  border-radius: 10px;
   font-size: 1rem;
   font-weight: 700;
   padding: 16px 18px;

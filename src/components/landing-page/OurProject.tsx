@@ -170,16 +170,19 @@ const FadeReveal = ({ children, delay = 0 }: { children: React.ReactNode; delay?
     {
       title: "Confused how data structures work?",
       desc: "With visualization and AI powered explanations tailored to your understanding level, you can understand how they work!",
+      preview: ["Queue", "Stack", "Tree"],
       align: "left",
     },
     {
       title: "Not sure what algorithm to use?",
       desc: "Building an app and not sure what algorithm to use? Just ask AlgoSensei and it will give you suggestions right away!",
+      preview: ["Input", "Analyze", "Suggest"],
       align: "right",
     },
     {
       title: "Want to see how data are updated for each line of code?",
       desc: "Understand the happenings of your code through visualization! Understand how x's value become y's, and how numbers within increase or decrease!",
+      preview: ["x = 4", "swap()", "x = y"],
       align: "left",
     },
   ];
@@ -203,21 +206,52 @@ const OurProject = () => {
                       text={f.title}
                       speed={30}
                       startDelay={0}
-                      style={{ fontFamily: "'Inter', sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 800, color: "#ffffff", lineHeight: 1.2, marginBottom: "1.2rem", display: "block" }}
+                      style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.65rem, 3vw, 2.25rem)", fontWeight: 800, color: "var(--landing-text)", lineHeight: 1.18, letterSpacing: 0, marginBottom: "1.2rem", display: "block" }}
                     />
                     <TypewriterParagraph
                       text={f.desc}
                       speed={13}
                       startDelay={f.title.length * 30 + 60}
-                      style={{ fontFamily: "'Inter', sans-serif", fontSize: "0.95rem", color: "#a0a0a0", lineHeight: 1.7 }}
+                      style={{ fontFamily: "var(--font-body)", fontSize: "1rem", color: "var(--landing-muted)", lineHeight: 1.75 }}
                     />
                   </div>
 
                   <FadeReveal delay={100}>
                     <div
                       className="feature-card"
-                      style={{ width: "420px", height: "260px", borderRadius: "15px", background: "#1e1e1e", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0, position: "relative", zIndex: 3, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
-                    />
+                      style={{ width: "420px", height: "260px", borderRadius: "14px", background: "linear-gradient(145deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015))", border: "1px solid var(--landing-border)", flexShrink: 0, position: "relative", zIndex: 3, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", overflow: "hidden", padding: "22px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}
+                    >
+                      <div style={{ display: "flex", gap: "7px" }}>
+                        <span style={{ width: 9, height: 9, borderRadius: 99, background: "#e24e40" }} />
+                        <span style={{ width: 9, height: 9, borderRadius: 99, background: "#777" }} />
+                        <span style={{ width: 9, height: 9, borderRadius: 99, background: "#444" }} />
+                      </div>
+                      <div style={{ display: "grid", gap: "12px" }}>
+                        {f.preview.map((item, index) => (
+                          <div
+                            key={item}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "12px",
+                              padding: "12px 14px",
+                              borderRadius: "10px",
+                              background: index === 1 ? "rgba(226,78,64,0.16)" : "rgba(255,255,255,0.045)",
+                              border: index === 1 ? "1px solid rgba(226,78,64,0.34)" : "1px solid rgba(255,255,255,0.06)",
+                              color: "#f5f5f5",
+                              fontFamily: "var(--font-body)",
+                              fontSize: "0.92rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            <span style={{ width: 22, height: 22, borderRadius: 7, display: "grid", placeItems: "center", background: "rgba(255,255,255,0.08)", color: "#e8e8e8", fontSize: "0.75rem" }}>
+                              {index + 1}
+                            </span>
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </FadeReveal>
                 </div>
               ))}

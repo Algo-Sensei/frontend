@@ -87,10 +87,10 @@ const AboutUs = () => {
         justifyContent: "center",}}
       >
         <p>
-            We’re a development team from the University of Cebu working behind AlgoSensie, an AI-powered mentor designed to help developers of all levels strengthen their data structures and algorithm skills.
+            We’re a development team from the University of Cebu working behind AlgoSensei, an AI-powered mentor designed to help developers of all levels strengthen their data structures and algorithm skills.
         </p>
         <p>
-            Our team blends different strengths to bring the project to life: John Paul leads as project manager and main developer, Zander builds across the full stack, Jam shapes smooth and responsive interfaces, and Kenneth oversees documentation while crafting the UI/UX. Guided by an Agile workflow, we collaborate to turn AlgoSensie into an accessible and supportive learning tool for devs everywhere.
+            Our team blends different strengths to bring the project to life: John Paul leads as project manager and main developer, Zander builds across the full stack, Jam shapes smooth and responsive interfaces, and Kenneth oversees documentation while crafting the UI/UX. Guided by an Agile workflow, we collaborate to turn AlgoSensei into an accessible and supportive learning tool for devs everywhere.
         </p>
       </div>
     </div>
