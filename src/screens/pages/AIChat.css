@@ -65,9 +65,6 @@
   transition: background 0.15s ease;
 }
 
-.ai-guest-signin-btn:hover {
-}
-
 .ai-root.ai-root-guest {
   left: 0;
 }
@@ -80,6 +77,14 @@
   padding: 12px;
   background: #1e1e1e;
   overflow: hidden;
+}
+
+.ai-split-layout-auth-balanced {
+  padding-right: calc(12px + var(--sidebar-collapsed-width, 72px));
+}
+
+.ai-split-layout-workspace-full {
+  padding: 0;
 }
 
 .ai-chat-pane,
@@ -100,12 +105,24 @@
   border-radius: 10px 0 0 10px;
 }
 
+.ai-chat-pane-hidden {
+  display: none;
+}
+
 .ai-workspace-pane {
   flex: 0 0 auto;
   min-width: 280px;
   border-left: none;
   border-radius: 0 10px 10px 0;
   animation: aiWorkspacePaneIn 0.38s cubic-bezier(0.16, 0.84, 0.18, 1) both;
+}
+
+.ai-workspace-pane-full {
+  flex: 1 1 auto;
+  width: 100% !important;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
 }
 
 .ai-resize-handle {
@@ -195,16 +212,12 @@
   color: #fff;
 }
 
-.ai-modal-btn-primary:hover {
-}
-
 .ai-modal-btn-secondary {
   background: #3a3a3a;
   color: #f0ede8;
 }
 
-.ai-modal-btn-secondary:hover {
-}
+/* ── Empty / landing state ───────────────────────────────────────────────── */
 
 .ai-empty {
   position: relative;
@@ -217,7 +230,10 @@
   padding: clamp(76px, 12vh, 118px) 32px 32px;
   overflow: visible;
   isolation: isolate;
+}
 
+.ai-empty-auth {
+  transform: translateX(calc(var(--sidebar-collapsed-width, 72px) * -0.5));
 }
 
 .ai-empty::before {
@@ -291,12 +307,16 @@
   background-clip: text;
   -webkit-background-clip: text;
   text-shadow: none;
-
 }
 
 .ai-empty-input-wrap {
   position: relative;
   isolation: isolate;
+}
+
+.ai-empty-input-shell {
+  width: 100%;
+  max-width: 580px;
 }
 
 .ai-empty-input-wrap::before {
@@ -335,6 +355,8 @@
   pointer-events: none;
 }
 
+/* ── Feed / chat area ────────────────────────────────────────────────────── */
+
 .ai-feed {
   flex: 1;
   overflow-y: auto;
@@ -350,8 +372,25 @@
   max-width: 700px;
 }
 
+.ai-feed-chat {
+  padding: 80px 32px 20px;
+}
+
+.ai-chat-content-width {
+  width: min(700px, calc(100% - 48px));
+}
+
 .ai-msg-row {
   display: flex;
+  width: 100%;
+}
+
+.ai-msg-row-ai {
+  animation: aiMessageSlideIn 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ai-msg-stack {
+  gap: 10px;
 }
 
 .ai-msg-row-enter {
@@ -388,6 +427,8 @@
   line-height: 1.6;
 }
 
+/* ── Code pill (workspace trigger) ──────────────────────────────────────── */
+
 .ai-code-pill {
   position: relative;
   overflow: hidden;
@@ -420,34 +461,7 @@
   transform: translateY(0);
 }
 
-@keyframes aiCodePillIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.97);
-    filter: blur(5px);
-  }
-  70% {
-    opacity: 1;
-    transform: translateY(-1px) scale(1.01);
-    filter: blur(0);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes aiTextFadeIn {
-  from {
-    opacity: 0.5;
-    transform: translateY(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* ── Thinking / typing indicator ─────────────────────────────────────────── */
 
 .ai-time {
   font-size: 10px;
@@ -456,23 +470,74 @@
 }
 
 .ai-typing-bubble {
-  background: #2e2e2e;
-  border: 1px solid #363636;
-  border-radius: 16px;
-  border-bottom-left-radius: 4px;
-  padding: 12px 16px;
-  display: flex;
-  gap: 5px;
-  align-items: center;
+  width: min(560px, 100%);
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
-.ai-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #666;
-  display: inline-block;
-  animation: pulse 1.2s infinite;
+.ai-thinking-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+  color: #9e9894;
+  animation: aiTextFadeIn 0.2s ease-out;
+}
+
+.ai-thinking-terminal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: #8f8984;
+  flex: 0 0 auto;
+  animation: aiTerminalBlink 1.1s steps(1) infinite;
+}
+
+.ai-thinking-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.ai-thinking-label {
+  color: #a59e99;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.ai-thinking-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ai-thinking-pulse span {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #e1a79c;
+  animation: aiThinkingDotPulse 1.2s infinite ease-in-out;
+}
+
+.ai-thinking-pulse span:nth-child(2) { animation-delay: 0.16s; }
+.ai-thinking-pulse span:nth-child(3) { animation-delay: 0.32s; }
+
+.ai-thinking-current {
+  min-width: 0;
+  color: #7f7a76;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ai-error-text {
@@ -482,6 +547,8 @@
   max-width: 500px;
   line-height: 1.5;
 }
+
+/* ── Bottom input bar ────────────────────────────────────────────────────── */
 
 .ai-bottom-bar {
   padding: 12px 0 24px;
@@ -606,172 +673,11 @@
   color: #767676;
 }
 
-@keyframes aiMessageSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes aiWorkspacePaneIn {
-  from {
-    opacity: 0;
-    transform: translateX(18px);
-    filter: blur(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-    filter: blur(0);
-  }
-}
-
-@keyframes aiRecentChatFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-    filter: blur(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
 .ai-clip-btn.disabled:hover {
   color: #8a8a8a;
 }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes aiEmptyRefreshIn {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes aiEmptyTitleIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-    filter: blur(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes aiEmptyInputIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.985);
-    box-shadow: 0 0 0 rgba(226, 78, 64, 0);
-  }
-  70% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    box-shadow: 0 18px 40px rgba(226, 78, 64, 0.08);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    box-shadow: 0 0 0 rgba(226, 78, 64, 0);
-  }
-}
-
-@keyframes aiEmptyBigGlow {
-  0% {
-    opacity: 0.58;
-    transform: translate(-51%, -49%) scale(0.97);
-  }
-  45% {
-    opacity: 0.84;
-    transform: translate(-49.5%, -51%) scale(1.035);
-  }
-  100% {
-    opacity: 0.72;
-    transform: translate(-50.5%, -50%) scale(1.01);
-  }
-}
-
-@keyframes aiInputGlowDrift {
-  0% {
-    opacity: 0.62;
-    transform: translate3d(-12px, 5px, 0) scale(0.98) rotate(-1.2deg);
-    background-position: 10% 50%, 76% 40%, 48% 8%, 48% 94%, 50% 50%;
-  }
-  38% {
-    opacity: 0.92;
-    transform: translate3d(6px, -8px, 0) scale(1.035) rotate(1.1deg);
-    background-position: 20% 38%, 66% 54%, 56% 18%, 58% 82%, 50% 50%;
-  }
-  68% {
-    opacity: 0.76;
-    transform: translate3d(12px, 2px, 0) scale(1.015) rotate(0.2deg);
-    background-position: 18% 58%, 84% 46%, 40% 24%, 42% 86%, 50% 50%;
-  }
-  100% {
-    opacity: 0.88;
-    transform: translate3d(-2px, -4px, 0) scale(1.025) rotate(-0.4deg);
-    background-position: 26% 44%, 70% 34%, 54% 28%, 54% 88%, 50% 50%;
-  }
-}
-
-@keyframes aiInputGlowPulse {
-  from {
-    opacity: 0.34;
-    transform: scale(0.985) rotate(-1deg);
-  }
-  to {
-    opacity: 0.72;
-    transform: scale(1.025) rotate(1deg);
-  }
-}
-
-@keyframes aiScreenReveal {
-  0% {
-    opacity: 0;
-    transform: translateY(-10px) scale(1.18);
-    filter: blur(18px);
-  }
-  52% {
-    opacity: 1;
-    transform: translateY(0) scale(0.985);
-    filter: blur(2px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 60%, 100% { opacity: 0.25; transform: scale(1); }
-  30%            { opacity: 1;    transform: scale(1.3); }
-}
-
-textarea:focus { outline: none; }
-textarea::placeholder { color: #4a4a4a; }
-button { font-family: inherit; }
-::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-
+/* ── File preview strip ──────────────────────────────────────────────────── */
 
 .ai-preview-strip {
   display: flex;
@@ -821,6 +727,7 @@ button { font-family: inherit; }
   color: #fff;
 }
 
+/* ── Message attachments ─────────────────────────────────────────────────── */
 
 .ai-msg-img {
   max-width: 220px;
@@ -846,7 +753,195 @@ button { font-family: inherit; }
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* ── Feedback buttons ────────────────────────────────────────────────────── */
+
+.ai-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ai-feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #3a3a3a;
+  border-radius: 999px;
+  background: transparent;
+  color: #9b9b9b;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.ai-feedback-btn:hover {
+  background: #2b2b2b;
+  border-color: #4a4a4a;
+  color: #f0ede8;
+  transform: translateY(-1px);
+}
+
+.ai-feedback-btn.active {
+  background: rgba(226, 78, 64, 0.14);
+  border-color: #e24e40;
+  color: #e24e40;
+}
+
+.ai-feedback-btn:focus-visible {
+  outline: 2px solid #e24e40;
+  outline-offset: 2px;
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
+
+@keyframes aiCodePillIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); filter: blur(5px); }
+  70%  { opacity: 1; transform: translateY(-1px) scale(1.01); filter: blur(0); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes aiTextFadeIn {
+  from { opacity: 0.5; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aiCursorBlink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.12; }
+}
+
+@keyframes aiTerminalBlink {
+  0%, 46% { opacity: 1; }
+  47%, 100% { opacity: 0.72; }
+}
+
+@keyframes aiThinkingDotPulse {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40% { transform: translateY(-2px); opacity: 1; }
+}
+
+@keyframes aiThinkingStepIn {
+  from { opacity: 0; transform: translateY(8px); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes aiThinkingSweep {
+  to { transform: translateX(100%); }
+}
+
+@keyframes aiMessageSlideIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aiWorkspacePaneIn {
+  from { opacity: 0; transform: translateX(18px); filter: blur(8px); }
+  to   { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+
+@keyframes aiRecentChatFadeIn {
+  from { opacity: 0; transform: translateY(12px); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aiEmptyRefreshIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aiEmptyTitleIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); filter: blur(8px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes aiEmptyInputIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); box-shadow: 0 0 0 rgba(226, 78, 64, 0); }
+  70%  { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 18px 40px rgba(226, 78, 64, 0.08); }
+  to   { opacity: 1; transform: translateY(0) scale(1); box-shadow: 0 0 0 rgba(226, 78, 64, 0); }
+}
+
+@keyframes aiEmptyBigGlow {
+  0%   { opacity: 0.58; transform: translate(-51%, -49%) scale(0.97); }
+  45%  { opacity: 0.84; transform: translate(-49.5%, -51%) scale(1.035); }
+  100% { opacity: 0.72; transform: translate(-50.5%, -50%) scale(1.01); }
+}
+
+@keyframes aiInputGlowDrift {
+  0%   { opacity: 0.62; transform: translate3d(-12px, 5px, 0) scale(0.98) rotate(-1.2deg); }
+  38%  { opacity: 0.92; transform: translate3d(6px, -8px, 0) scale(1.035) rotate(1.1deg); }
+  68%  { opacity: 0.76; transform: translate3d(12px, 2px, 0) scale(1.015) rotate(0.2deg); }
+  100% { opacity: 0.88; transform: translate3d(-2px, -4px, 0) scale(1.025) rotate(-0.4deg); }
+}
+
+@keyframes aiInputGlowPulse {
+  from { opacity: 0.34; transform: scale(0.985) rotate(-1deg); }
+  to   { opacity: 0.72; transform: scale(1.025) rotate(1deg); }
+}
+
+@keyframes aiScreenReveal {
+  0%   { opacity: 0; transform: translateY(-10px) scale(1.18); filter: blur(18px); }
+  52%  { opacity: 1; transform: translateY(0) scale(0.985); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes pulse {
+  0%, 60%, 100% { opacity: 0.25; transform: scale(1); }
+  30%           { opacity: 1; transform: scale(1.3); }
+}
+
+/* ── Base resets ─────────────────────────────────────────────────────────── */
+
+textarea:focus { outline: none; }
+textarea::placeholder { color: #4a4a4a; }
+button { font-family: inherit; }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+
 @media (max-width: 768px) {
+  .ai-split-layout-auth-balanced {
+    padding-right: 12px;
+  }
+
+  .ai-empty-auth {
+    transform: none;
+  }
+
+  .ai-feed-chat {
+    padding: 32px 16px 20px;
+  }
+
+  .ai-feed {
+    padding: 24px 16px;
+  }
+
+  .ai-chat-content-width {
+    width: calc(100% - 24px);
+  }
+
+  /* On mobile, bubbles can go wider */
+  .ai-msg-stack {
+    max-width: 88%;
+  }
+
+  .ai-bubble-ai,
+  .ai-bubble-user {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .ai-thinking-current {
+    white-space: normal;
+  }
+
   .ai-guest-topbar {
     top: 16px;
     right: 16px;
@@ -858,10 +953,10 @@ button { font-family: inherit; }
   }
 
   .ai-bottom-bar {
-    padding: 12px 20px 20px;
+    padding: 12px 16px 20px;
   }
 
-  .ai-feed {
-    padding: 24px 20px;
+  .ai-msg-row {
+    max-width: 100%;
   }
 }

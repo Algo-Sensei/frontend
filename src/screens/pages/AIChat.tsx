@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // @ts-ignore: CSS side-effect import without type declarations
 import "./AIChat.css";
@@ -11,6 +11,7 @@ import {
   fetchChatMessages,
   fetchReply as fetchChatReply,
   sendAuthenticatedReply,
+  uploadFile as uploadChatFile,
   type ChatMessageItem,
   type OpenAIMessage,
   type UserProfile,
@@ -39,6 +40,11 @@ type Attachment = {
   type: string; 
 };
 
+type ThinkingStep = {
+  id: string;
+  label: string;
+};
+
 // -----------------
 // API Config
 // -----------------
@@ -49,31 +55,20 @@ const SYSTEM_PROMPT = `You are AlgoSensei, an expert algorithm and data structur
 You explain concepts clearly, analyze time/space complexity, and help with coding problems.
 Keep responses concise but thorough. Use plain text — no markdown formatting.`;
 const MAX_CHAT_INPUT_LENGTH = 10000;
-const ACCEPTED_CHAT_FILE_TYPES = [
-  "image/*",
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".txt",
-  ".md",
-  ".csv",
-  ".json",
-  ".py",
-  ".js",
-  ".jsx",
-  ".ts",
-  ".tsx",
-  ".java",
-  ".cpp",
-  ".c",
-].join(",");
 const AUTH_GREETING_TEMPLATES = [
-  "Welcome back, {name}. Ready to learn?",
-  "Let's solve something today, {name}.",
-  "Ready for another challenge, {name}?",
-  "What shall we debug, {name}?",
-  "Let's sharpen your skills, {name}.",
-  "Time to crack logic, {name}.",
+  "Welcome back, {name}. What algorithm are we untangling today?",
+  "Welcome back, {name}. Ready to sharpen your problem-solving?",
+  "Good to see you, {name}. What are we building clarity around today?",
+  "Welcome back, {name}. Drop a problem and we'll crack it together.",
+  "Back in the dojo, {name}. Which concept needs a clean walkthrough?",
+  "Welcome back, {name}. Got a tricky bug or algorithm on your mind?",
+];
+const THINKING_STEPS: ThinkingStep[] = [
+  { id: "topic", label: "Detecting DSA topic" },
+  { id: "algorithm", label: "Evaluating optimal algorithm" },
+  { id: "complexity", label: "Comparing complexities" },
+  { id: "solution", label: "Generating Java solution" },
+  { id: "visualization", label: "Preparing visualization" },
 ];
 
 function getTime() {
@@ -89,51 +84,53 @@ function getGreetingParts(template: string) {
   return { beforeName, afterName };
 }
 
-function renderMessageText(text: string) {
-  return text.split(/\n{2,}/).map((paragraph, index) => (
-    <p
-      key={`${paragraph.slice(0, 20)}-${index}`}
-      style={{ margin: index === 0 ? 0 : "0 0 10px", lineHeight: "1.65", whiteSpace: "pre-wrap" }}
-    >
-      {paragraph}
-    </p>
-  ));
-}
-
-function AnimatedMessageText({
-  text,
-  animate,
+function ThinkingPanel({
+  visibleSteps,
 }: {
-  text: string;
-  animate?: boolean;
+  visibleSteps: ThinkingStep[];
 }) {
-  const [displayText, setDisplayText] = useState(animate ? "" : text);
-  
-  useEffect(() => {
-    if (!animate) {
-      setDisplayText(text);
-      return;
-    }
-
-    let index = 0;
-    const step = Math.max(1, Math.ceil(text.length / 80));
-    setDisplayText("");
-
-    const timer = window.setInterval(() => {
-      index = Math.min(text.length, index + step);
-      setDisplayText(text.slice(0, index));
-
-      if (index >= text.length) {
-        window.clearInterval(timer);
-      }
-    }, 18);
-
-    return () => window.clearInterval(timer);
-  }, [animate, text]);
+  const latestStep = visibleSteps[visibleSteps.length - 1]?.label ?? "Analyzing your request";
+  const previousSteps = visibleSteps.slice(0, -1).slice(-2);
 
   return (
-    <div className={animate ? "ai-text-reveal" : undefined}>
-      {renderMessageText(displayText)}
+    <div className="ai-thinking-trace" aria-live="polite">
+      <div className="ai-thinking-inline">
+        <span className="ai-thinking-terminal-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="3.25" y="4.25" width="17.5" height="15.5" rx="3.5" stroke="currentColor" strokeWidth="1.7" />
+            <path d="M8 9.5L10.8 12L8 14.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M12.5 15H16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          </svg>
+        </span>
+        <span className="ai-thinking-copy">
+          <span className="ai-thinking-label">Thinking</span>
+          <span className="ai-thinking-pulse" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span className="ai-thinking-current">{latestStep}</span>
+        </span>
+      </div>
+
+      {previousSteps.length > 0 && (
+        <div className="ai-thinking-history">
+          <span className="ai-thinking-rail" aria-hidden="true" />
+          <div className="ai-thinking-history-list">
+            {previousSteps.map((step) => (
+              <div key={step.id} className="ai-thinking-history-row">
+                <span className="ai-thinking-file-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 4.75h7.7l4.55 4.55V19a1.75 1.75 0 0 1-1.75 1.75H6A1.75 1.75 0 0 1 4.25 19V6.5A1.75 1.75 0 0 1 6 4.75Z" stroke="currentColor" strokeWidth="1.65" />
+                    <path d="M13.5 4.9V9.1h4.2" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <span className="ai-thinking-history-text">{step.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -181,6 +178,7 @@ const InputBox = ({
   onSend,
   onFileChange,
   onRemovePreview,
+  onMockAI,
   canSend,
   isTyping,
   preview,
@@ -195,6 +193,7 @@ const InputBox = ({
   onSend: () => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemovePreview: () => void;
+  onMockAI?: () => void;
   canSend: boolean;
   isTyping: boolean;
   preview: Attachment | null;
@@ -245,7 +244,7 @@ const InputBox = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept={ACCEPTED_CHAT_FILE_TYPES}
+          accept="image/*,.pdf,.txt,.md,.py,.js,.ts,.java,.cpp,.c"
           style={{ display: "none" }}
           onChange={onFileChange}
         />
@@ -263,6 +262,15 @@ const InputBox = ({
           <IconClip />
           <span>Add photos</span>
         </button>
+
+        {onMockAI && (
+          <button 
+            onClick={onMockAI}
+            style={{ background: '#3a3a3a', border: '1px solid #444', color: '#fff', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+          >
+            Mock AI
+          </button>
+        )}
       </div>
     </div>
   </div>
@@ -276,14 +284,12 @@ export default function AIChat() {
   const [error, setError] = useState<string | null>(null);
   const [canSend, setCanSend] = useState(false);
   const [preview, setPreview] = useState<Attachment | null>(null); // local preview before send
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceWidth, setWorkspaceWidth] = useState(480);
   const [activeCode, setActiveCode] = useState<CodeArtifact | null>(null);
   const [showVisualizer, setShowVisualizer] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  const [recentChatEntering, setRecentChatEntering] = useState(false);
+  const [workspaceFullScreen, setWorkspaceFullScreen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [showGuestAttachmentModal, setShowGuestAttachmentModal] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
@@ -291,6 +297,7 @@ export default function AIChat() {
   const [hiddenRecentChatId, setHiddenRecentChatId] = useState<string | null>(null);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [showAuthGreeting, setShowAuthGreeting] = useState(true);
+  const [visibleThinkingSteps, setVisibleThinkingSteps] = useState<ThinkingStep[]>([]);
   const [authGreetingTemplate] = useState(() => (
     AUTH_GREETING_TEMPLATES[Math.floor(Math.random() * AUTH_GREETING_TEMPLATES.length)]
   ));
@@ -299,11 +306,8 @@ export default function AIChat() {
   const splitRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const startingNewChatRef = useRef(false);
   const hasMessages = messages.length > 0;
-  const searchParams = new URLSearchParams(location.search);
-  const allowsGuestMode = searchParams.get("mode") === "guest";
-  const requestedChatId = searchParams.get("chatId");
+  const allowsGuestMode = new URLSearchParams(location.search).get("mode") === "guest";
   const isGuest = authChecked && !user;
   const shouldShowAuthGreeting = Boolean(user && showAuthGreeting);
   const greetingName = getFirstName(user?.name);
@@ -354,7 +358,31 @@ export default function AIChat() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, visibleThinkingSteps.length]);
+
+  useEffect(() => {
+    if (!isTyping) {
+      setVisibleThinkingSteps([]);
+      return;
+    }
+
+    setVisibleThinkingSteps([]);
+
+    const timers = THINKING_STEPS.map((step, index) =>
+      window.setTimeout(() => {
+        setVisibleThinkingSteps((current) => {
+          if (current.some((item) => item.id === step.id)) {
+            return current;
+          }
+          return [...current, step];
+        });
+      }, index * 420)
+    );
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [isTyping]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -370,29 +398,25 @@ export default function AIChat() {
     if (preview) setCanSend(true);
   }, [preview]);
 
-  const resetTextarea = useCallback(() => {
+  const resetTextarea = () => {
     const el = textareaRef.current;
     if (!el) return;
     el.value = "";
     el.style.height = "auto";
     el.style.overflowY = "hidden";
     setCanSend(false);
-  }, []);
+  };
 
   const handleNewChat = () => {
-    startingNewChatRef.current = true;
     setShowAuthGreeting(false);
-    setRecentChatEntering(false);
     setHiddenRecentChatId(null);
     setActiveChatId(null);
     setMessages([]);
     setError(null);
     setPreview(null);
-    setAttachmentFile(null);
     historyRef.current = [];
     setHistoryRefreshKey((value) => value + 1);
     resetTextarea();
-    navigate("/chat", { replace: true });
   };
 
   const handleDeleteChat = (chatId: string) => {
@@ -401,26 +425,23 @@ export default function AIChat() {
     if (hiddenRecentChatId === chatId) {
       setHiddenRecentChatId(null);
     }
-    setRecentChatEntering(false);
     setActiveChatId(null);
     setMessages([]);
     setError(null);
     setPreview(null);
-    setAttachmentFile(null);
     historyRef.current = [];
     resetTextarea();
-    navigate("/chat", { replace: true });
   };
 
-  const getDisplayTime = useCallback((value?: string) => {
+  const getDisplayTime = (value?: string) => {
     if (!value) return getTime();
     const date = new Date(value);
     return Number.isNaN(date.getTime())
       ? getTime()
       : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }, []);
+  };
 
-  const mapStoredMessages = useCallback((items: ChatMessageItem[]): Message[] =>
+  const mapStoredMessages = (items: ChatMessageItem[]): Message[] =>
     items.map((item, index) => {
       const parsed = item.role === "assistant" ? extractCodeBlocks(item.content) : null;
       const attachment =
@@ -441,15 +462,12 @@ export default function AIChat() {
         code: item.role === "assistant" ? parsed?.code : undefined,
         animateText: false,
       };
-    }), [getDisplayTime]);
+    });
 
-  const loadChat = useCallback(async (chatId: string) => {
-    setShowAuthGreeting(false);
-    setRecentChatEntering(false);
+  const loadChat = async (chatId: string) => {
     setHiddenRecentChatId(null);
     setError(null);
     setPreview(null);
-    setAttachmentFile(null);
     setUploading(false);
     resetTextarea();
     setIsTyping(true);
@@ -458,7 +476,6 @@ export default function AIChat() {
       const chatMessages = await fetchChatMessages(chatId);
       setActiveChatId(chatId);
       setMessages(mapStoredMessages(chatMessages));
-      setRecentChatEntering(true);
       historyRef.current = chatMessages.map((message) => ({
         role: message.role,
         content: message.content,
@@ -468,26 +485,12 @@ export default function AIChat() {
     } finally {
       setIsTyping(false);
     }
-  }, [mapStoredMessages, resetTextarea]);
-
-  const handleSelectChat = (chatId: string) => {
-    navigate(`/chat?chatId=${encodeURIComponent(chatId)}`);
   };
-
-  useEffect(() => {
-    if (!requestedChatId) {
-      startingNewChatRef.current = false;
-      return;
-    }
-
-    if (startingNewChatRef.current) return;
-    if (!authChecked || !user || !requestedChatId || requestedChatId === activeChatId) return;
-    void loadChat(requestedChatId);
-  }, [activeChatId, authChecked, loadChat, requestedChatId, user]);
 
   const openWorkspace = (code: CodeArtifact) => {
     setActiveCode(code);
     setWorkspaceOpen(true);
+    setWorkspaceFullScreen(false);
     setShowVisualizer(false);
   }
 
@@ -530,17 +533,27 @@ export default function AIChat() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show a local preview right away; the file itself is sent with the chat request.
-    const localUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : "";
-    setAttachmentFile(file);
-    setPreview({ name: file.name, url: localUrl, type: file.type || file.name.split(".").pop() || "" });
+    // show local preview right away
+    const localUrl = URL.createObjectURL(file);
+    setPreview({ name: file.name, url: localUrl, type: file.type });
     setCanSend(true);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    // upload to backend in background
+    setUploading(true);
+    try {
+      const remoteUrl = await uploadChatFile(file);
+      // swap local blob URL for the real backend URL
+      setPreview({ name: file.name, url: remoteUrl, type: file.type });
+    } catch {
+      // upload failed
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleRemovePreview = () => {
     setPreview(null);
-    setAttachmentFile(null);
     const el = textareaRef.current;
     setCanSend(el ? el.value.trim().length > 0 : false);
   };
@@ -567,10 +580,8 @@ export default function AIChat() {
     });
 
     const userContent = trimmed + (preview ? `\n[File attached: ${preview.name}]` : "");
-    const fileToSend = attachmentFile;
     resetTextarea();
     setPreview(null);
-    setAttachmentFile(null);
     setIsTyping(true);
 
     historyRef.current.push({ role: "user", content: userContent });
@@ -581,7 +592,6 @@ export default function AIChat() {
         const response = await sendAuthenticatedReply({
           chatId: activeChatId,
           content: userContent,
-          file: fileToSend,
           chatTitle: trimmed || "New chat",
         });
         setActiveChatId(response.chatId);
@@ -640,6 +650,7 @@ export default function AIChat() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
+
   const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
     el.style.height = "auto";
@@ -653,7 +664,6 @@ export default function AIChat() {
       <div
         style={{
           minHeight: "100vh",
-          width: "100%",
           backgroundColor: "#242424",
           display: "flex",
           alignItems: "center",
@@ -681,7 +691,7 @@ export default function AIChat() {
       style={{
         position: "relative",
         height: "100vh",
-        width: "100%",
+        width: "100vw",
         overflow: "hidden",
         background: "#1e1e1e",
         display: "flex",
@@ -710,7 +720,7 @@ export default function AIChat() {
       {!isGuest && (
         <Sidebar
           onNewChat={handleNewChat}
-          onSelectChat={handleSelectChat}
+          onSelectChat={loadChat}
           onDeleteChat={handleDeleteChat}
           onCollapse={() => {}}
           historyRefreshKey={historyRefreshKey}
@@ -720,20 +730,22 @@ export default function AIChat() {
 
       <div className={`ai-root${isGuest ? " ai-root-guest" : ""}${enteredFromHero ? " ai-root-enter" : ""}`} 
            style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
-        <div className="ai-split-layout" ref={splitRef}>
-          <div className="ai-chat-pane" style={{ display: isFullScreen ? "none" : "flex" }}>
+        <div className={`ai-split-layout${workspaceOpen && !isGuest && !workspaceFullScreen ? " ai-split-layout-auth-balanced" : ""}${workspaceFullScreen ? " ai-split-layout-workspace-full" : ""}`} ref={splitRef}>
+          <div className={`ai-chat-pane${workspaceFullScreen ? " ai-chat-pane-hidden" : ""}`}>
             {!hasMessages ? (
-              <div className="ai-empty ai-empty-refresh" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                {shouldShowAuthGreeting && (
-                  <h1 className="ai-empty-title">
+              <div className={`ai-empty${!isGuest ? " ai-empty-auth" : ""}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <h1 className="ai-empty-title">
+                  {shouldShowAuthGreeting ? (
                     <>
                       {greetingParts.beforeName}
                       <span className="ai-empty-title-name">{greetingName}</span>
                       {greetingParts.afterName}
                     </>
-                  </h1>
-                )}
-                <div className="ai-empty-input-wrap" style={{ width: "100%", maxWidth: 580 }}>
+                  ) : (
+                    ""
+                  )}
+                </h1>
+                <div className="ai-empty-input-shell">
                   <InputBox
                     textareaRef={textareaRef}
                     fileInputRef={fileInputRef}
@@ -754,8 +766,7 @@ export default function AIChat() {
               </div>
             ) : (
               <>
-                <div className="ai-feed" style={{ flex: 1, overflowY: "auto", padding: "80px clamp(24px, 8%, 20%) 20px" }}>
-                  <div className={recentChatEntering ? "ai-recent-chat-enter" : undefined}>
+                <div className="ai-feed ai-feed-chat">
                   {messages.map(msg => (
                     <div key={msg.id} className="ai-msg-row" style={{ 
                       display: "flex",
@@ -774,77 +785,79 @@ export default function AIChat() {
                       
                       <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%" }}>
                         {msg.text && (
-                          // AFTER
-                        <div className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"} style={{
-                          padding: "12px 20px",
-                          borderRadius: "16px",
-                          background: msg.role === "user" ? "#3a3a3a" : "transparent",
-                          color: "#fff",
-                          fontSize: "14px",
-                          lineHeight: "1.6",
-                          border: msg.role === "ai" ? "1px solid #333" : "none"
-                        }}>
-                          {msg.role === "ai" ? (
-                            <ReactMarkdown
-                              components={{
-                                p: ({ children }) => (
-                                  <p style={{ margin: "0 0 10px", lineHeight: "1.65" }}>{children}</p>
-                                ),
-                                strong: ({ children }) => (
-                                  <strong style={{ color: "#fff", fontWeight: 700 }}>{children}</strong>
-                                ),
-                                em: ({ children }) => (
-                                  <em style={{ color: "#d4d0cb" }}>{children}</em>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ol>
-                                ),
-                                li: ({ children }) => (
-                                  <li style={{ marginBottom: "4px", lineHeight: "1.6" }}>{children}</li>
-                                ),
-                                code: ({ children }) => (
-                                  <code style={{
-                                    background: "#1a1a1a",
-                                    padding: "2px 6px",
-                                    borderRadius: "4px",
-                                    fontSize: "13px",
-                                    fontFamily: "Consolas, Monaco, monospace",
-                                    color: "#e06c75",
-                                  }}>
-                                    {children}
-                                  </code>
-                                ),
-                                h1: ({ children }) => (
-                                  <h1 style={{ fontSize: "18px", fontWeight: 700, margin: "12px 0 8px", color: "#fff" }}>{children}</h1>
-                                ),
-                                h2: ({ children }) => (
-                                  <h2 style={{ fontSize: "16px", fontWeight: 700, margin: "10px 0 6px", color: "#fff" }}>{children}</h2>
-                                ),
-                                h3: ({ children }) => (
-                                  <h3 style={{ fontSize: "14px", fontWeight: 700, margin: "8px 0 4px", color: "#e0dbd5" }}>{children}</h3>
-                                ),
-                                blockquote: ({ children }) => (
-                                  <blockquote style={{
-                                    borderLeft: "3px solid #e24e40",
-                                    paddingLeft: "12px",
-                                    margin: "8px 0",
-                                    color: "#b0aca8",
-                                    fontStyle: "italic",
-                                  }}>
-                                    {children}
-                                  </blockquote>
-                                ),
-                              }}
-                            >
-                              {msg.text}
-                            </ReactMarkdown>
-                          ) : (
-                            msg.text
-                          )}
-                        </div>
+                          <div
+                            className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"}
+                            style={{
+                              padding: "12px 20px",
+                              borderRadius: "16px",
+                              background: msg.role === "user" ? "#3a3a3a" : "transparent",
+                              color: "#fff",
+                              fontSize: "14px",
+                              lineHeight: "1.6",
+                              border: msg.role === "ai" ? "1px solid #333" : "none"
+                            }}
+                          >
+                            {msg.role === "ai" ? (
+                              <ReactMarkdown
+                                components={{
+                                  p: ({ children }) => (
+                                    <p style={{ margin: "0 0 10px", lineHeight: "1.65" }}>{children}</p>
+                                  ),
+                                  strong: ({ children }) => (
+                                    <strong style={{ color: "#fff", fontWeight: 700 }}>{children}</strong>
+                                  ),
+                                  em: ({ children }) => (
+                                    <em style={{ color: "#d4d0cb" }}>{children}</em>
+                                  ),
+                                  ul: ({ children }) => (
+                                    <ul style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ul>
+                                  ),
+                                  ol: ({ children }) => (
+                                    <ol style={{ paddingLeft: "20px", margin: "8px 0" }}>{children}</ol>
+                                  ),
+                                  li: ({ children }) => (
+                                    <li style={{ marginBottom: "4px", lineHeight: "1.6" }}>{children}</li>
+                                  ),
+                                  code: ({ children }) => (
+                                    <code style={{
+                                      background: "#1a1a1a",
+                                      padding: "2px 6px",
+                                      borderRadius: "4px",
+                                      fontSize: "13px",
+                                      fontFamily: "Consolas, Monaco, monospace",
+                                      color: "#e06c75",
+                                    }}>
+                                      {children}
+                                    </code>
+                                  ),
+                                  h1: ({ children }) => (
+                                    <h1 style={{ fontSize: "18px", fontWeight: 700, margin: "12px 0 8px", color: "#fff" }}>{children}</h1>
+                                  ),
+                                  h2: ({ children }) => (
+                                    <h2 style={{ fontSize: "16px", fontWeight: 700, margin: "10px 0 6px", color: "#fff" }}>{children}</h2>
+                                  ),
+                                  h3: ({ children }) => (
+                                    <h3 style={{ fontSize: "14px", fontWeight: 700, margin: "8px 0 4px", color: "#e0dbd5" }}>{children}</h3>
+                                  ),
+                                  blockquote: ({ children }) => (
+                                    <blockquote style={{
+                                      borderLeft: "3px solid #e24e40",
+                                      paddingLeft: "12px",
+                                      margin: "8px 0",
+                                      color: "#b0aca8",
+                                      fontStyle: "italic",
+                                    }}>
+                                      {children}
+                                    </blockquote>
+                                  ),
+                                }}
+                              >
+                                {msg.text}
+                              </ReactMarkdown>
+                            ) : (
+                              msg.text
+                            )}
+                          </div>
                         )}
 
                         
@@ -869,8 +882,7 @@ export default function AIChat() {
                               cursor: "pointer",
                               display: "flex",
                               alignItems: "center",
-                              fontWeight: "500",
-                              animationDelay: `${i * 0.06}s`,
+                              fontWeight: "500"
                             }}
                           >
                             {snippet.filename}
@@ -890,7 +902,6 @@ export default function AIChat() {
                       </div>
                     </div>
                   ))}
-                  </div>
 
                   {isTyping && (
                     <div className="ai-msg-row" style={{ justifyContent: "flex-start", gap: "12px" }}>
@@ -901,7 +912,7 @@ export default function AIChat() {
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                         </div>
                       <div className="ai-typing-bubble">
-                        {[0, 0.2, 0.4].map((d, i) => <span key={i} className="ai-dot" style={{ animationDelay: `${d}s` }} />)}
+                        <ThinkingPanel visibleSteps={visibleThinkingSteps} />
                       </div>
                     </div>
                   )}
@@ -910,7 +921,7 @@ export default function AIChat() {
                 </div>
 
                 <div className="ai-bottom-bar">
-                  <div style={{ width: "calc(100% - 48px)", maxWidth: "700px" }}>
+                  <div className="ai-chat-content-width">
                   <InputBox
                     textareaRef={textareaRef}
                     fileInputRef={fileInputRef}
@@ -934,7 +945,7 @@ export default function AIChat() {
 
           {workspaceOpen && activeCode && (
             <>
-              {!isFullScreen && (
+              {!workspaceFullScreen && (
                 <div
                   className="ai-resize-handle"
                   role="separator"
@@ -943,38 +954,21 @@ export default function AIChat() {
                   onPointerDown={handleResizeStart}
                 />
               )}
-              <div className="ai-workspace-pane" style={{
-                 ...(isFullScreen ? {
-                    position: "fixed",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    zIndex: 9999,
-                    width: "100%",
-                    borderRadius: 0,
-                    transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
-                 } : {
-                    width: workspaceWidth,
-                    flex: "0 0 auto",
-                    borderRadius: "0 10px 10px 0",
-                    transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
-                 })
-              }}>
+              <div
+                className={`ai-workspace-pane${workspaceFullScreen ? " ai-workspace-pane-full" : ""}`}
+                style={workspaceFullScreen ? undefined : { width: workspaceWidth }}
+              >
                 <ALWorkspace
                   code={activeCode}
                   showVisualizer={showVisualizer}
                   onVisualize={() => setShowVisualizer(true)}
                   onClose={() => {
-                     if (isFullScreen) {
-                        setIsFullScreen(false);
-                        setTimeout(() => setWorkspaceOpen(false), 300);
-                     } else {
-                        setWorkspaceOpen(false);
-                     }
+                    setWorkspaceOpen(false);
+                    setWorkspaceFullScreen(false);
+                    setShowVisualizer(false);
                   }}
-                  isFullScreen={isFullScreen}
-                  onToggleFullScreen={() => setIsFullScreen(prev => !prev)}
+                  isFullScreen={workspaceFullScreen}
+                  onToggleFullScreen={() => setWorkspaceFullScreen((value) => !value)}
                   onCloseVisualizer={() => setShowVisualizer(false)}
                 />
               </div>
