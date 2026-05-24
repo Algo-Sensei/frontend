@@ -687,7 +687,7 @@ export default function AIChat() {
 
   return (
     <div
-      className={`ai-page-shell${enteredFromHero ? " ai-page-shell-enter" : ""}`}
+      className={`ai-root${enteredFromHero ? " ai-root-enter" : ""}`}
       style={{
         position: "relative",
         height: "100vh",
@@ -698,39 +698,16 @@ export default function AIChat() {
         flexDirection: "row"
       }}
     >
-      {/* Top Navigation for Anonymous */}
-      {isGuest && (
-        <>
-          <button
-            className="ai-guest-back-btn"
-            onClick={() => navigate("/landing")}
-            aria-label="Back to landing page"
-          >
-            <IconBack />
-          </button>
+      <Sidebar
+        onNewChat={handleNewChat}
+        onSelectChat={loadChat}
+        onDeleteChat={handleDeleteChat}
+        onCollapse={() => {}}
+        historyRefreshKey={historyRefreshKey}
+        hiddenChatId={hiddenRecentChatId}
+      />
 
-          <div className="ai-guest-topbar">
-            <button className="ai-guest-signin-btn" onClick={() => navigate("/login")}>
-              Sign in
-            </button>
-          </div>
-        </>
-      )}
-
-      {!isGuest && (
-        <Sidebar
-          onNewChat={handleNewChat}
-          onSelectChat={loadChat}
-          onDeleteChat={handleDeleteChat}
-          onCollapse={() => {}}
-          historyRefreshKey={historyRefreshKey}
-          hiddenChatId={hiddenRecentChatId}
-        />
-      )}
-
-      <div className={`ai-root${isGuest ? " ai-root-guest" : ""}${enteredFromHero ? " ai-root-enter" : ""}`} 
-           style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
-        <div className={`ai-split-layout${workspaceOpen && !isGuest && !workspaceFullScreen ? " ai-split-layout-auth-balanced" : ""}${workspaceFullScreen ? " ai-split-layout-workspace-full" : ""}`} ref={splitRef}>
+      <div className={`ai-split-layout${workspaceFullScreen ? " ai-split-layout-workspace-full" : ""}`} ref={splitRef} style={{ flex: 1, minWidth: 0 }}>
           <div className={`ai-chat-pane${workspaceFullScreen ? " ai-chat-pane-hidden" : ""}`}>
             {!hasMessages ? (
               <div className={`ai-empty${!isGuest ? " ai-empty-auth" : ""}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
@@ -774,16 +751,7 @@ export default function AIChat() {
                       marginBottom: "20px",
                       gap: "12px"
                     }}>
-                      {msg.role === "ai" && (
-                        <div className="ai-avatar" style={{ 
-                          width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
-                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
-                        }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                        </div>
-                      )}
-                      
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", width: msg.role === "ai" ? "calc(100% - 16px)" : "auto", maxWidth: msg.role === "user" ? "80%" : "none" }}>
                         {msg.text && (
                           <div
                             className={msg.role === "user" ? "ai-bubble-user" : "ai-bubble-ai"}
@@ -890,13 +858,13 @@ export default function AIChat() {
                         ))}
 
                         {msg.role === "ai" && (
-                          <div className="ai-feedback">
-                            <button className="ai-feedback-btn" aria-label="Like response" title="Like response">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-                            </button>
-                            <button className="ai-feedback-btn" aria-label="Dislike response" title="Dislike response">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zM17 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>
-                            </button>
+                          <div className="ai-feedback" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
+                            <div className="ai-avatar" style={{ 
+                              width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
+                              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
+                            }}>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -974,7 +942,6 @@ export default function AIChat() {
               </div>
             </>
           )}
-        </div>
       </div>
 
       {showGuestAttachmentModal && (

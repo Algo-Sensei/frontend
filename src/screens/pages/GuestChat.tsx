@@ -297,7 +297,7 @@ export default function GuestChat() {
 
   return (
     <div
-      className="ai-page-shell"
+      className="ai-root"
       style={{
         position: "relative",
         height: "100vh",
