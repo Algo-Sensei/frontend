@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import "./sidebar.css";
@@ -16,10 +16,12 @@ const SIDEBAR_AUTO_HIDE_MS = 3000;
 
 function IconNewChat() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      <line x1="12" y1="9" x2="12" y2="15" />
-      <line x1="9" y1="12" x2="15" y2="12" />
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M0 0h24v24H0z" fill="none" />
+      <g fill="currentColor">
+        <path d="M13 3H1v17h6.529L6 23h2.245l1.528-3H23v-7h-2v5H3V5h10z" opacity=".5" />
+        <path fillRule="evenodd" d="M20 3h-2v3h-3v2h3v3h2V8h3V6h-3z" clipRule="evenodd" />
+      </g>
     </svg>
   );
 }
@@ -127,6 +129,9 @@ export default function Sidebar({
   const [loggingOut, setLoggingOut] = useState(false);
   const [openMenuChatId, setOpenMenuChatId] = useState<string | null>(null);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+  const sidebarRootRef = useRef<HTMLDivElement | null>(null);
+  const settingsModalRef = useRef<HTMLDivElement | null>(null);
+  const autoHideTimerRef = useRef<number | null>(null);
 
   // notify AIChat of initial collapsed state on mount
   useEffect(() => {
@@ -159,29 +164,96 @@ export default function Sidebar({
   }, []);
 
   useEffect(() => {
-    if (collapsed || showLogoutConfirm) return;
+    return () => {
+      if (autoHideTimerRef.current !== null) {
+        window.clearTimeout(autoHideTimerRef.current);
+      }
+    };
+  }, []);
 
-    const timer = window.setTimeout(() => {
-      setCollapsed(true);
-      onCollapse(true);
-      setActive(null);
-      setOpenFaq(null);
-      setOpenMenuChatId(null);
+  const clearAutoHideTimer = useCallback(() => {
+    if (autoHideTimerRef.current !== null) {
+      window.clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+  }, []);
+
+  const collapseSidebar = useCallback(() => {
+    clearAutoHideTimer();
+    setCollapsed(true);
+    onCollapse(true);
+    setActive(null);
+    setOpenFaq(null);
+    setOpenMenuChatId(null);
+  }, [clearAutoHideTimer, onCollapse]);
+
+  const scheduleAutoHide = useCallback((allowWhenExpanded = false) => {
+    clearAutoHideTimer();
+
+    if ((!allowWhenExpanded && collapsed) || showLogoutConfirm) return;
+
+    autoHideTimerRef.current = window.setTimeout(() => {
+      collapseSidebar();
     }, SIDEBAR_AUTO_HIDE_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [active, collapsed, onCollapse, openFaq, openMenuChatId, showLogoutConfirm]);
+  }, [clearAutoHideTimer, collapsed, collapseSidebar, showLogoutConfirm]);
 
   const toggle = (item: ActiveItem) => {
     setActive(prev => prev === item ? null : item);
   };
 
+  const toggleSettings = () => {
+    clearAutoHideTimer();
+    setOpenFaq(null);
+    setActive(prev => prev === "settings" ? null : "settings");
+  };
+
+  const openLogoutConfirm = () => {
+    clearAutoHideTimer();
+    setActive(null);
+    setOpenFaq(null);
+    setShowLogoutConfirm(true);
+  };
+
   const handleToggleCollapse = () => {
     const next = !collapsed;
+    clearAutoHideTimer();
     setCollapsed(next);
     onCollapse(next);
     setActive(null);
+
+    if (!next) {
+      scheduleAutoHide(true);
+    }
   };
+
+  useEffect(() => {
+    if (collapsed || showLogoutConfirm) return;
+
+    const handleOutsidePress = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      if (sidebarRootRef.current?.contains(target)) return;
+      if (settingsModalRef.current?.contains(target)) return;
+
+      if (active === "settings") {
+        clearAutoHideTimer();
+        setActive(null);
+        setOpenFaq(null);
+        return;
+      }
+
+      collapseSidebar();
+    };
+
+    document.addEventListener("mousedown", handleOutsidePress, true);
+    document.addEventListener("touchstart", handleOutsidePress, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsidePress, true);
+      document.removeEventListener("touchstart", handleOutsidePress, true);
+    };
+  }, [active, clearAutoHideTimer, collapsed, collapseSidebar, showLogoutConfirm]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -251,9 +323,52 @@ export default function Sidebar({
     </div>,
     document.body
   ) : null;
-
+  const settingsModal = user && active === "settings" ? createPortal(
+    <div
+      ref={settingsModalRef}
+      className="sb-settings-modal"
+      onPointerEnter={clearAutoHideTimer}
+      onPointerLeave={() => scheduleAutoHide()}
+    >
+      <div className="sb-setting-row">
+        <span>Model</span>
+        <span className="sb-setting-val">GPT-4o</span>
+      </div>
+      <button className="sb-settings-faq-title" type="button">
+        <span>FAQ</span>
+        <IconFAQ />
+      </button>
+      <div className="sb-settings-faq-list">
+        {faqs.map((item, i) => (
+          <div key={item.q} className="sb-faq-item">
+            <button className="sb-faq-q" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+              <span>{item.q}</span>
+              <span className="sb-faq-arrow">{openFaq === i ? "▲" : "▼"}</span>
+            </button>
+            {openFaq === i && <p className="sb-faq-a">{item.a}</p>}
+          </div>
+        ))}
+      </div>
+      <div className="sb-setting-row">
+        <span>Logout</span>
+        <button className="sb-danger-btn" onClick={openLogoutConfirm}>Logout</button>
+      </div>
+    </div>,
+    document.body
+  ) : null;
   return (
-    <div className={`sb-root${collapsed ? " sb-collapsed" : ""}`}>
+    <div
+      ref={sidebarRootRef}
+      className={`sb-root${collapsed ? " sb-collapsed" : ""}`}
+      onPointerEnter={clearAutoHideTimer}
+      onPointerLeave={() => scheduleAutoHide()}
+      onFocusCapture={clearAutoHideTimer}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          scheduleAutoHide();
+        }
+      }}
+    >
 
       <div className="sb-header">
         {!collapsed && (
@@ -353,58 +468,56 @@ export default function Sidebar({
             )}
 
             {user && (
-              <div className="sb-profile-card">
-                {user.profilePicture ? (
-                  <img className="sb-profile-avatar" src={user.profilePicture} alt={user.name} />
-                ) : (
-                  <div className="sb-profile-avatar sb-profile-fallback">{userInitials}</div>
-                )}
-                <div className="sb-profile-meta">
-                  <p className="sb-profile-name">{user.name}</p>
-                  <p className="sb-profile-email">{user.email}</p>
-                  {user.loginProvider?.toUpperCase() === "GITHUB" && (
-                    <p className="sb-profile-provider">
-                      <ProviderIcon provider={user.loginProvider} />
-                      <span>{user.loginProvider}</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <button className={`sb-item${active === "faq" ? " active" : ""}`} onClick={() => toggle("faq")}>
-              <span>FAQ</span>
-              <IconFAQ />
-            </button>
-
-            {active === "faq" && (
-              <div className="sb-sublist">
-                {faqs.map((item, i) => (
-                  <div key={i} className="sb-faq-item">
-                    <button className="sb-faq-q" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
-                      <span>{item.q}</span>
-                      <span className="sb-faq-arrow">{openFaq === i ? "▲" : "▼"}</span>
-                    </button>
-                    {openFaq === i && <p className="sb-faq-a">{item.a}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {user && (
               <>
-                <button className={`sb-item${active === "settings" ? " active" : ""}`} onClick={() => toggle("settings")}>
-                  <span>Settings</span>
-                  <IconSettings />
+                <div className="sb-profile-card">
+                  <div className="sb-profile-main">
+                    {user.profilePicture ? (
+                      <img className="sb-profile-avatar" src={user.profilePicture} alt={user.name} />
+                    ) : (
+                      <div className="sb-profile-avatar sb-profile-fallback">{userInitials}</div>
+                    )}
+                    <div className="sb-profile-meta">
+                      <p className="sb-profile-name">{user.name}</p>
+                      <p className="sb-profile-email">{user.email}</p>
+                      {user.loginProvider?.toUpperCase() === "GITHUB" && (
+                        <p className="sb-profile-provider">
+                          <ProviderIcon provider={user.loginProvider} />
+                          <span>{user.loginProvider}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    className={`sb-profile-settings-btn${active === "settings" ? " active" : ""}`}
+                    aria-label="Open account options"
+                    onClick={toggleSettings}
+                  >
+                    <IconSettings />
+                  </button>
+                </div>
+
+                {active === "settings" && <div className="sb-settings-anchor" aria-hidden="true" />}
+              </>
+            )}
+
+            {!user && (
+              <>
+                <button className={`sb-item${active === "faq" ? " active" : ""}`} onClick={() => toggle("faq")}>
+                  <span>FAQ</span>
+                  <IconFAQ />
                 </button>
 
-                {active === "settings" && (
+                {active === "faq" && (
                   <div className="sb-sublist">
-                    <div className="sb-setting-row"><span>Model</span><span className="sb-setting-val">GPT-4o</span></div>
-                    <div className="sb-setting-row">
-                      <span>Logout</span>
-                      <button className="sb-danger-btn" onClick={() => setShowLogoutConfirm(true)}>Logout</button>
-                    </div>
+                    {faqs.map((item, i) => (
+                      <div key={i} className="sb-faq-item">
+                        <button className="sb-faq-q" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+                          <span>{item.q}</span>
+                          <span className="sb-faq-arrow">{openFaq === i ? "▲" : "▼"}</span>
+                        </button>
+                        {openFaq === i && <p className="sb-faq-a">{item.a}</p>}
+                      </div>
+                    ))}
                   </div>
                 )}
               </>
@@ -417,13 +530,32 @@ export default function Sidebar({
         <div className="sb-icon-rail">
           <button className="sb-icon-btn" title="New Chat" onClick={onNewChat}><IconNewChat /></button>
           <div className="sb-spacer" />
-          <div className="sb-sep-sm" />
-          <button className="sb-icon-btn" title="FAQ" onClick={handleToggleCollapse}><IconFAQ /></button>
           {user && (
-            <button className="sb-icon-btn" title="Settings" onClick={handleToggleCollapse}><IconSettings /></button>
+            <>
+              <div className="sb-collapsed-bottom">
+                <button
+                  className="sb-collapsed-profile-btn"
+                  title={user.name}
+                  onClick={handleToggleCollapse}
+                >
+                  {user.profilePicture ? (
+                    <img className="sb-collapsed-profile-avatar" src={user.profilePicture} alt={user.name} />
+                  ) : (
+                    <div className="sb-collapsed-profile-avatar sb-profile-fallback">{userInitials}</div>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+          {!user && (
+            <>
+              <div className="sb-sep-sm" />
+              <button className="sb-icon-btn" title="FAQ" onClick={handleToggleCollapse}><IconFAQ /></button>
+            </>
           )}
         </div>
       )}
+      {settingsModal}
       {logoutModal}
     </div>
   );
