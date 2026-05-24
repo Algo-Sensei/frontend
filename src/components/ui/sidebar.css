@@ -25,9 +25,7 @@
 }
 
 .sb-root {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: relative;
   height: 100vh;
   width: var(--sidebar-expanded-width);
   z-index: 100;

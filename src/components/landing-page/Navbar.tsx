@@ -69,7 +69,6 @@ const Navbar = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         @media (max-width: 768px) {
           .navbar-wrapper { padding: 10px 1rem 0 !important; }
           .navbar-inner { padding: 0.8rem 1.2rem !important; border-radius: 14px !important; }
