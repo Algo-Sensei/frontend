@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 // @ts-ignore: CSS side-effect import without type declarations
 import "./AIChat.css";
-import GuestSidebar from "../../components/ui/GuestSidebar";
 import { extractCodeBlocks } from "../../components/chat-page-workspace/codeParser";
 import ALWorkspace from "../../components/chat-page-workspace/ALWorkspace";
 import { sendGuestReply, type OpenAIMessage } from "../../api";
 
 const MAX_CHAT_INPUT_LENGTH = 10000;
+const ALGO_SENSEI_LOGO_SRC = "/AlgoSensieLogo.svg";
 
 type CodeArtifact = {
   language: string;
@@ -76,6 +76,22 @@ function AnimatedMessageText({
 
 function getTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function IconBack() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AlgoSenseiAvatar() {
+  return (
+    <div className="ai-avatar ai-logo-avatar" aria-hidden="true">
+      <img src={ALGO_SENSEI_LOGO_SRC} alt="" />
+    </div>
+  );
 }
 
 function IconClip() {
@@ -166,6 +182,13 @@ export default function GuestChat() {
   const splitRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasMessages = messages.length > 0;
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/");
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -308,7 +331,24 @@ export default function GuestChat() {
         flexDirection: "row",
       }}
     >
-      <GuestSidebar onNewChat={handleNewChat} onCollapse={() => {}} />
+      <button
+        type="button"
+        className="ai-guest-back-btn"
+        onClick={handleBack}
+        aria-label="Go back"
+      >
+        <IconBack />
+      </button>
+
+      <div className="ai-guest-topbar">
+        <button
+          type="button"
+          className="ai-guest-signin-btn"
+          onClick={() => navigate("/login")}
+        >
+          Sign in
+        </button>
+      </div>
 
       <div className="ai-root" style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
         <div className="ai-split-layout" ref={splitRef}>
@@ -343,11 +383,7 @@ export default function GuestChat() {
                         gap: "12px",
                       }}
                     >
-                      {msg.role === "ai" && (
-                        <div className="ai-avatar" style={{ width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" /></svg>
-                        </div>
-                      )}
+                      {msg.role === "ai" && <AlgoSenseiAvatar />}
 
                       <div style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "80%" }}>
                         {msg.text && (
@@ -381,9 +417,7 @@ export default function GuestChat() {
 
                   {isTyping && (
                     <div className="ai-msg-row" style={{ justifyContent: "flex-start", gap: "12px" }}>
-                      <div className="ai-avatar" style={{ width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" /></svg>
-                      </div>
+                      <AlgoSenseiAvatar />
                       <div className="ai-typing-bubble">
                         {[0, 0.2, 0.4].map((d, i) => <span key={i} className="ai-dot" style={{ animationDelay: `${d}s` }} />)}
                       </div>

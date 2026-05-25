@@ -23,16 +23,13 @@ const valuesAreEqual = (left: unknown, right: unknown) => {
   return JSON.stringify(left) === JSON.stringify(right);
 };
 
+const collectionEntries = (collections?: Record<string, any[]>) =>
+  Object.entries(collections ?? {}).filter(([, value]) => Array.isArray(value));
+
 const extractScene = (frame?: ExecutionFrame, previousFrame?: ExecutionFrame) => {
-  const arrayEntries = Object.entries(frame?.heap?.arrays ?? {}).filter(([, value]) =>
-    Array.isArray(value)
-  );
-  const stackEntries = Object.entries(frame?.heap?.stack ?? {}).filter(([, value]) =>
-    Array.isArray(value)
-  );
-  const queueEntries = Object.entries(frame?.heap?.queues ?? {}).filter(([, value]) =>
-    Array.isArray(value)
-  );
+  const arrayEntries = collectionEntries(frame?.heap?.arrays);
+  const stackEntries = collectionEntries(frame?.heap?.stack);
+  const queueEntries = collectionEntries(frame?.heap?.queues);
   const variableEntries = Object.entries(frame?.variables ?? {});
   const changedVariables = new Set<string>();
   const changedArrays = new Set<string>();
@@ -95,6 +92,8 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
   const printOutput = (frame?.output?.length ?? 0) > (previousFrame?.output?.length ?? 0) 
     ? frame?.output?.[frame.output.length - 1] 
     : null;
+  const currentLine = frame?.line ?? "-";
+  const outputLines = frame?.output ?? [];
 
   return (
     <div className="algo-renderer">
@@ -110,6 +109,12 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
           <div className="algo-renderer-frame-pill">
             Frame {Math.min(frameIndex + 1, Math.max(totalFrames, 1))}/{Math.max(totalFrames, 1)}
           </div>
+        </div>
+
+        <div className="algo-renderer-legend" aria-label="Visualization legend">
+          <span><i className="legend-swatch active" />Current</span>
+          <span><i className="legend-swatch changed" />Changed</span>
+          <span><i className="legend-swatch found" />Final</span>
         </div>
 
         <div className={`algo-renderer-canvas${hasCanvasItems ? "" : " blank"}`} style={{ position: "relative" }}>
@@ -293,6 +298,12 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
               </div>
             );
           })}
+
+          {!hasCanvasItems && (
+            <div className="algo-renderer-empty">
+              Press play or step forward to start tracing the algorithm state.
+            </div>
+          )}
         </div>
       </div>
 
@@ -305,7 +316,7 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
         <div className="algo-renderer-stats">
           <div className="algo-renderer-stat-card">
             <span className="algo-renderer-card-label">Line</span>
-            <strong>{frame?.line ?? "-"}</strong>
+            <strong>{currentLine}</strong>
           </div>
           <div className="algo-renderer-stat-card">
             <span className="algo-renderer-card-label">Iterator</span>
@@ -314,6 +325,43 @@ const AlgorithmRenderer = ({ frame, previousFrame, frameIndex, totalFrames }: Al
           <div className="algo-renderer-stat-card">
             <span className="algo-renderer-card-label">Match</span>
             <strong>{scene.foundIndex ?? "-"}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="algo-renderer-inspector">
+        <div className="algo-renderer-inspector-panel">
+          <span className="algo-renderer-card-label">Variables</span>
+          <div className="algo-renderer-inspector-list">
+            {scene.variableEntries.length > 0 ? scene.variableEntries.map(([name, value]) => (
+              <div className={`algo-renderer-inspector-row${scene.changedVariables.has(name) ? " changed" : ""}`} key={name}>
+                <span>{name}</span>
+                <strong>{formatValue(value)}</strong>
+              </div>
+            )) : <p>No variables yet.</p>}
+          </div>
+        </div>
+
+        <div className="algo-renderer-inspector-panel">
+          <span className="algo-renderer-card-label">Collections</span>
+          <div className="algo-renderer-inspector-list">
+            {[...scene.arrayEntries, ...scene.stackEntries, ...scene.queueEntries].length > 0 ? (
+              [...scene.arrayEntries, ...scene.stackEntries, ...scene.queueEntries].map(([name, values]) => (
+                <div className="algo-renderer-inspector-row" key={name}>
+                  <span>{name}</span>
+                  <strong>{formatValue(values)}</strong>
+                </div>
+              ))
+            ) : <p>No arrays, stacks, or queues yet.</p>}
+          </div>
+        </div>
+
+        <div className="algo-renderer-inspector-panel">
+          <span className="algo-renderer-card-label">Output</span>
+          <div className="algo-renderer-output-list">
+            {outputLines.length > 0 ? outputLines.map((line, index) => (
+              <code key={`${line}-${index}`}>{line}</code>
+            )) : <p>No output yet.</p>}
           </div>
         </div>
       </div>

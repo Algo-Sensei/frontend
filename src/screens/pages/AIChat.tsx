@@ -11,7 +11,6 @@ import {
   fetchChatMessages,
   fetchReply as fetchChatReply,
   sendAuthenticatedReply,
-  uploadFile as uploadChatFile,
   type ChatMessageItem,
   type OpenAIMessage,
   type UserProfile,
@@ -40,16 +39,12 @@ type Attachment = {
   type: string; 
 };
 
-type ThinkingStep = {
-  id: string;
-  label: string;
-};
-
 // -----------------
 // API Config
 // -----------------
 const OPENAI_API_KEY = "sk-..."; // OpenAI API Key here
 const MODEL = "gpt-4o"; // model you want to use
+const ALGO_SENSEI_LOGO_SRC = "/AlgoSensieLogo.svg";
 
 const SYSTEM_PROMPT = `You are AlgoSensei, an expert algorithm and data structures tutor.
 You explain concepts clearly, analyze time/space complexity, and help with coding problems.
@@ -63,14 +58,6 @@ const AUTH_GREETING_TEMPLATES = [
   "Back in the dojo, {name}. Which concept needs a clean walkthrough?",
   "Welcome back, {name}. Got a tricky bug or algorithm on your mind?",
 ];
-const THINKING_STEPS: ThinkingStep[] = [
-  { id: "topic", label: "Detecting DSA topic" },
-  { id: "algorithm", label: "Evaluating optimal algorithm" },
-  { id: "complexity", label: "Comparing complexities" },
-  { id: "solution", label: "Generating Java solution" },
-  { id: "visualization", label: "Preparing visualization" },
-];
-
 function getTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
@@ -84,14 +71,7 @@ function getGreetingParts(template: string) {
   return { beforeName, afterName };
 }
 
-function ThinkingPanel({
-  visibleSteps,
-}: {
-  visibleSteps: ThinkingStep[];
-}) {
-  const latestStep = visibleSteps[visibleSteps.length - 1]?.label ?? "Analyzing your request";
-  const previousSteps = visibleSteps.slice(0, -1).slice(-2);
-
+function ThinkingPanel() {
   return (
     <div className="ai-thinking-trace" aria-live="polite">
       <div className="ai-thinking-inline">
@@ -109,28 +89,8 @@ function ThinkingPanel({
             <span />
             <span />
           </span>
-          <span className="ai-thinking-current">{latestStep}</span>
         </span>
       </div>
-
-      {previousSteps.length > 0 && (
-        <div className="ai-thinking-history">
-          <span className="ai-thinking-rail" aria-hidden="true" />
-          <div className="ai-thinking-history-list">
-            {previousSteps.map((step) => (
-              <div key={step.id} className="ai-thinking-history-row">
-                <span className="ai-thinking-file-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M6 4.75h7.7l4.55 4.55V19a1.75 1.75 0 0 1-1.75 1.75H6A1.75 1.75 0 0 1 4.25 19V6.5A1.75 1.75 0 0 1 6 4.75Z" stroke="currentColor" strokeWidth="1.65" />
-                    <path d="M13.5 4.9V9.1h4.2" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                <span className="ai-thinking-history-text">{step.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -164,8 +124,16 @@ function IconX() {
 function IconBack() {
   return (
     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M15 18l-6-6 6-6" stroke="#888" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+function AlgoSenseiAvatar() {
+  return (
+    <div className="ai-avatar ai-logo-avatar" aria-hidden="true">
+      <img src={ALGO_SENSEI_LOGO_SRC} alt="" />
+    </div>
   );
 }
 
@@ -260,7 +228,7 @@ const InputBox = ({
           style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '14px' }}
         >
           <IconClip />
-          <span>Add photos</span>
+          <span>Add photos & files</span>
         </button>
 
         {onMockAI && (
@@ -284,6 +252,7 @@ export default function AIChat() {
   const [error, setError] = useState<string | null>(null);
   const [canSend, setCanSend] = useState(false);
   const [preview, setPreview] = useState<Attachment | null>(null); // local preview before send
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceWidth, setWorkspaceWidth] = useState(480);
@@ -297,7 +266,6 @@ export default function AIChat() {
   const [hiddenRecentChatId, setHiddenRecentChatId] = useState<string | null>(null);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [showAuthGreeting, setShowAuthGreeting] = useState(true);
-  const [visibleThinkingSteps, setVisibleThinkingSteps] = useState<ThinkingStep[]>([]);
   const [authGreetingTemplate] = useState(() => (
     AUTH_GREETING_TEMPLATES[Math.floor(Math.random() * AUTH_GREETING_TEMPLATES.length)]
   ));
@@ -314,6 +282,13 @@ export default function AIChat() {
   const greetingParts = getGreetingParts(authGreetingTemplate);
   const transitionState = location.state as { fromHero?: boolean } | null;
   const enteredFromHero = Boolean(transitionState?.fromHero);
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/");
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -358,31 +333,7 @@ export default function AIChat() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, isTyping, visibleThinkingSteps.length]);
-
-  useEffect(() => {
-    if (!isTyping) {
-      setVisibleThinkingSteps([]);
-      return;
-    }
-
-    setVisibleThinkingSteps([]);
-
-    const timers = THINKING_STEPS.map((step, index) =>
-      window.setTimeout(() => {
-        setVisibleThinkingSteps((current) => {
-          if (current.some((item) => item.id === step.id)) {
-            return current;
-          }
-          return [...current, step];
-        });
-      }, index * 420)
-    );
-
-    return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
-    };
-  }, [isTyping]);
+  }, [messages, isTyping]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -414,6 +365,7 @@ export default function AIChat() {
     setMessages([]);
     setError(null);
     setPreview(null);
+    setPendingFile(null);
     historyRef.current = [];
     setHistoryRefreshKey((value) => value + 1);
     resetTextarea();
@@ -429,6 +381,7 @@ export default function AIChat() {
     setMessages([]);
     setError(null);
     setPreview(null);
+    setPendingFile(null);
     historyRef.current = [];
     resetTextarea();
   };
@@ -468,6 +421,7 @@ export default function AIChat() {
     setHiddenRecentChatId(null);
     setError(null);
     setPreview(null);
+    setPendingFile(null);
     setUploading(false);
     resetTextarea();
     setIsTyping(true);
@@ -523,7 +477,7 @@ export default function AIChat() {
     window.addEventListener("pointercancel", stopResize);
   };
 
-  // when user picks a file — show local preview immediately, then upload to backend
+  // when user picks a file — keep a local preview and send the real file with the chat request
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isGuest) {
       setShowGuestAttachmentModal(true);
@@ -536,24 +490,15 @@ export default function AIChat() {
     // show local preview right away
     const localUrl = URL.createObjectURL(file);
     setPreview({ name: file.name, url: localUrl, type: file.type });
+    setPendingFile(file);
     setCanSend(true);
-
-    // upload to backend in background
-    setUploading(true);
-    try {
-      const remoteUrl = await uploadChatFile(file);
-      // swap local blob URL for the real backend URL
-      setPreview({ name: file.name, url: remoteUrl, type: file.type });
-    } catch {
-      // upload failed
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleRemovePreview = () => {
     setPreview(null);
+    setPendingFile(null);
     const el = textareaRef.current;
     setCanSend(el ? el.value.trim().length > 0 : false);
   };
@@ -565,6 +510,7 @@ export default function AIChat() {
     if ((!trimmed && !preview) || isTyping) return;
 
     setError(null);
+    const fileToSend = pendingFile;
 
     // add user message
     setMessages(prev => [...prev, {
@@ -582,6 +528,7 @@ export default function AIChat() {
     const userContent = trimmed + (preview ? `\n[File attached: ${preview.name}]` : "");
     resetTextarea();
     setPreview(null);
+    setPendingFile(null);
     setIsTyping(true);
 
     historyRef.current.push({ role: "user", content: userContent });
@@ -592,6 +539,7 @@ export default function AIChat() {
         const response = await sendAuthenticatedReply({
           chatId: activeChatId,
           content: userContent,
+          file: fileToSend,
           chatTitle: trimmed || "New chat",
         });
         setActiveChatId(response.chatId);
@@ -698,14 +646,39 @@ export default function AIChat() {
         flexDirection: "row"
       }}
     >
-      <Sidebar
-        onNewChat={handleNewChat}
-        onSelectChat={loadChat}
-        onDeleteChat={handleDeleteChat}
-        onCollapse={() => {}}
-        historyRefreshKey={historyRefreshKey}
-        hiddenChatId={hiddenRecentChatId}
-      />
+      {isGuest && (
+        <button
+          type="button"
+          className="ai-guest-back-btn"
+          onClick={handleBack}
+          aria-label="Go back"
+        >
+          <IconBack />
+        </button>
+      )}
+
+      {isGuest && (
+        <div className="ai-guest-topbar">
+          <button
+            type="button"
+            className="ai-guest-signin-btn"
+            onClick={() => navigate("/login")}
+          >
+            Sign in
+          </button>
+        </div>
+      )}
+
+      {!isGuest && (
+        <Sidebar
+          onNewChat={handleNewChat}
+          onSelectChat={loadChat}
+          onDeleteChat={handleDeleteChat}
+          onCollapse={() => {}}
+          historyRefreshKey={historyRefreshKey}
+          hiddenChatId={hiddenRecentChatId}
+        />
+      )}
 
       <div className={`ai-split-layout${workspaceFullScreen ? " ai-split-layout-workspace-full" : ""}`} ref={splitRef} style={{ flex: 1, minWidth: 0 }}>
           <div className={`ai-chat-pane${workspaceFullScreen ? " ai-chat-pane-hidden" : ""}`}>
@@ -859,12 +832,7 @@ export default function AIChat() {
 
                         {msg.role === "ai" && (
                           <div className="ai-feedback" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
-                            <div className="ai-avatar" style={{ 
-                              width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
-                              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
-                            }}>
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                            </div>
+                            <AlgoSenseiAvatar />
                           </div>
                         )}
                       </div>
@@ -873,14 +841,9 @@ export default function AIChat() {
 
                   {isTyping && (
                     <div className="ai-msg-row" style={{ justifyContent: "flex-start", gap: "12px" }}>
-                      <div className="ai-avatar" style={{ 
-                          width: "32px", height: "32px", background: "#e54d42", borderRadius: "8px", 
-                          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 
-                        }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                        </div>
+                      <AlgoSenseiAvatar />
                       <div className="ai-typing-bubble">
-                        <ThinkingPanel visibleSteps={visibleThinkingSteps} />
+                        <ThinkingPanel />
                       </div>
                     </div>
                   )}
