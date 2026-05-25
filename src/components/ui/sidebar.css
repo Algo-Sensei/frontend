@@ -61,6 +61,73 @@
   align-items: center;
 }
 
+.sb-logo-mark {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.sb-logo-mark-img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  display: block;
+}
+
+.sb-logo-toggle {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--app-text-subtle);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.sb-logo-toggle:hover {
+  background: var(--app-surface-hover);
+  color: #aaa;
+}
+
+.sb-logo-img,
+.sb-logo-toggle-icon {
+  position: absolute;
+  inset: auto;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
+}
+
+.sb-logo-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.sb-logo-toggle:hover .sb-logo-img,
+.sb-logo-toggle:focus-visible .sb-logo-img {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.sb-logo-toggle:hover .sb-logo-toggle-icon,
+.sb-logo-toggle:focus-visible .sb-logo-toggle-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .sb-logo-text {
   font-size: 20px;
   font-weight: 800;
@@ -89,6 +156,7 @@
 }
 
 .sb-collapse-btn:focus-visible,
+.sb-logo-toggle:focus-visible,
 .sb-icon-btn:focus-visible,
 .sb-profile-settings-btn:focus-visible,
 .sb-collapsed-profile-btn:focus-visible,

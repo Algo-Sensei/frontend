@@ -13,6 +13,7 @@ import {
 
 type ActiveItem = "newchat" | "faq" | "settings" | null;
 const SIDEBAR_AUTO_HIDE_MS = 3000;
+const ALGO_SENSEI_LOGO_SRC = "/AlgoSensieLogo.svg";
 
 function IconNewChat() {
   return (
@@ -225,6 +226,15 @@ export default function Sidebar({
     }
   };
 
+  const handleOpenFaqFromCollapsed = () => {
+    clearAutoHideTimer();
+    setCollapsed(false);
+    onCollapse(false);
+    setActive("faq");
+    setOpenFaq(null);
+    scheduleAutoHide(true);
+  };
+
   useEffect(() => {
     if (collapsed || showLogoutConfirm) return;
 
@@ -369,15 +379,23 @@ export default function Sidebar({
     >
 
       <div className="sb-header">
-        {!collapsed && (
-          <div className="sb-logo">
-            <img src="/logo.png" alt="AS" style={{ width: 36, height: 36, objectFit: "contain" }}
-              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-          </div>
+        {collapsed ? (
+          <button className="sb-logo-toggle" onClick={handleToggleCollapse} aria-label="Expand sidebar">
+            <img className="sb-logo-img" src={ALGO_SENSEI_LOGO_SRC} alt="AlgoSensei" />
+            <span className="sb-logo-toggle-icon" aria-hidden="true">
+              <IconExpand />
+            </span>
+          </button>
+        ) : (
+          <>
+            <div className="sb-logo-mark">
+              <img className="sb-logo-mark-img" src={ALGO_SENSEI_LOGO_SRC} alt="AlgoSensei" />
+            </div>
+            <button className="sb-collapse-btn" onClick={handleToggleCollapse} aria-label="Collapse sidebar">
+              <IconCollapse />
+            </button>
+          </>
         )}
-        <button className="sb-collapse-btn" onClick={handleToggleCollapse}>
-          {collapsed ? <IconExpand /> : <IconCollapse />}
-        </button>
       </div>
 
       {!collapsed && (
@@ -548,7 +566,7 @@ export default function Sidebar({
           {!user && (
             <>
               <div className="sb-sep-sm" />
-              <button className="sb-icon-btn" title="FAQ" onClick={handleToggleCollapse}><IconFAQ /></button>
+              <button className="sb-icon-btn" title="FAQ" onClick={handleOpenFaqFromCollapsed}><IconFAQ /></button>
             </>
           )}
         </div>
